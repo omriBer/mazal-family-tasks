@@ -15,18 +15,30 @@
 <body>
 
   <div class="app-frame">
-
-    <!-- בחירה בין הורה / ילד -->
-    <div class="view-toggle">
-      <button class="toggle-btn active" id="parentTab" onclick="openParentView()">הורה 👨‍👧</button>
-      <button class="toggle-btn" id="kidTab" onclick="showCard('kid')">ילד 👧</button>
-    </div>
+    <div id="viewToggleRoot"></div>
 
     <div id="syncStatusContainer" class="sync-status-container"></div>
 
-    <!-- כרטיס הורה -->
-    <section class="card active" id="parentCard" aria-labelledby="parentTab">
+    <div id="parentMount"></div>
+    <div id="kidMount"></div>
 
+    <div class="footer-note">
+      מז״ל – משימות, זמן ולב ❤<br />
+      גרסה משפחתית בענן
+    </div>
+  </div>
+
+  <!-- תבנית מתג בין מצב הורה / ילד -->
+  <template id="viewToggleTemplate">
+    <div class="view-toggle">
+      <button class="toggle-btn" id="parentTab" onclick="openParentView()">הורה 👨‍👧</button>
+      <button class="toggle-btn" id="kidTab" onclick="showCard('kid')">ילד 👧</button>
+    </div>
+  </template>
+
+  <!-- תבנית כרטיס הורה -->
+  <template id="parentViewTemplate">
+    <section class="card" id="parentCard" aria-labelledby="parentCardTitle">
       <!-- מצב נעול (לפני סיסמה) -->
       <div id="parentLocked" class="locked-card">
         <div style="font-size:20px;font-weight:600;color:var(--text-dark);margin-bottom:8px;">
@@ -46,7 +58,7 @@
         <header class="brand-header">
           <div class="star-icon" aria-hidden="true"></div>
           <div class="brand-text">
-            <div class="title">מז״ל</div>
+            <div class="title" id="parentCardTitle">מז״ל</div>
             <div class="subtitle">
               שלום הורה 👋<br />
               הנה המשימות של הילדים להיום
@@ -73,14 +85,15 @@
         <div id="parentKidsArea"></div>
       </div>
     </section>
+  </template>
 
-    <!-- כרטיס ילד -->
-    <section class="card" id="kidCard" aria-labelledby="kidTab">
-
+  <!-- תבנית כרטיס ילד -->
+  <template id="kidViewTemplate">
+    <section class="card" id="kidCard" aria-labelledby="kidCardTitle">
       <header class="brand-header">
         <div class="star-icon" aria-hidden="true"></div>
         <div class="brand-text">
-          <div class="title">מז״ל</div>
+          <div class="title" id="kidCardTitle">מז״ל</div>
           <div class="subtitle">
             <span id="kidHeaderName">היי 🧒</span><br />
             אלו המשימות שלך להיום
@@ -88,20 +101,15 @@
         </div>
       </header>
 
-      <!-- טאבים בין הילדים -->
       <div class="kid-tabs" id="kidTabsArea"></div>
 
-      <!-- טקסט חיזוק אישי -->
       <div class="kid-top-line" id="kidHeadline">...</div>
       <div class="kid-sub-line" id="kidSubline">...</div>
 
-      <!-- משימות של הילד -->
       <div id="kidTasksArea"></div>
 
-      <!-- היסטוריית הודעות -->
       <div id="kidMessagesArea" class="kid-messages-wrapper"></div>
 
-      <!-- הודעה להורה -->
       <div class="send-feedback-area">
         <label for="kidNote">רוצה לשלוח הודעה להורה?</label>
         <textarea
@@ -111,81 +119,90 @@
         <button class="send-btn" onclick="sendKidMessage()">שליחה להורה ➜</button>
       </div>
     </section>
+  </template>
 
-    <div class="footer-note">
-      מז״ל – משימות, זמן ולב ❤<br />
-      גרסה משפחתית בענן
+  <!-- תבנית מסך ילד לא נמצא -->
+  <template id="kidMissingTemplate">
+    <section class="card kid-missing-card" id="kidMissingCard">
+      <div class="missing-message">
+        <div class="missing-emoji" aria-hidden="true">💭</div>
+        <h2>לא מצאנו ילד עם הקישור הזה</h2>
+        <p>
+          בקשו מההורה את הקישור הנכון 😌<br />
+          ותיכנסו שוב לעולם הפרטי שלכם.
+        </p>
+      </div>
+    </section>
+  </template>
+
+  <!-- תבנית מודאלים לאזור ההורה -->
+  <template id="parentModalsTemplate">
+    <div class="modal-backdrop" id="taskModalBg">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <button class="close-modal-btn" onclick="closeModal('taskModalBg')" aria-label="סגור">✕</button>
+
+        <h2 id="modalTitle">משימה חדשה</h2>
+
+        <label for="taskChild">למי המשימה?</label>
+        <select id="taskChild"></select>
+
+        <label for="taskTitle">שם המשימה</label>
+        <input id="taskTitle" placeholder="לסדר את החדר 🧹" />
+
+        <label for="taskMeta">תיאור / יעד</label>
+        <textarea
+          id="taskMeta"
+          placeholder="לפני ארוחת ערב, לבד בלי עזרה"
+        ></textarea>
+
+        <button class="save-task-btn" onclick="saveNewTask()">שמור</button>
+      </div>
     </div>
-  </div>
 
-  <!-- מודאל הוספת משימה -->
-  <div class="modal-backdrop" id="taskModalBg">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <button class="close-modal-btn" onclick="closeModal('taskModalBg')" aria-label="סגור">✕</button>
+    <div class="modal-backdrop" id="replyModalBg">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="replyTitle">
+        <button class="close-modal-btn" onclick="closeModal('replyModalBg')" aria-label="סגור">✕</button>
 
-      <h2 id="modalTitle">משימה חדשה</h2>
+        <h2 id="replyTitle">תגובה למשימה</h2>
 
-      <label for="taskChild">למי המשימה?</label>
-      <select id="taskChild"></select>
+        <div
+          id="replyTaskName"
+          style="font-size:14px;color:var(--text-mid);margin-bottom:8px;"
+        ></div>
 
-      <label for="taskTitle">שם המשימה</label>
-      <input id="taskTitle" placeholder="לסדר את החדר 🧹" />
+        <label for="replyText">הודעת הורה</label>
+        <textarea
+          id="replyText"
+          placeholder="כל הכבוד על המאמץ 💖"
+        ></textarea>
 
-      <label for="taskMeta">תיאור / יעד</label>
-      <textarea
-        id="taskMeta"
-        placeholder="לפני ארוחת ערב, לבד בלי עזרה"
-      ></textarea>
-
-      <button class="save-task-btn" onclick="saveNewTask()">שמור</button>
+        <button class="save-reply-btn" onclick="saveReply()">שמור תגובה</button>
+      </div>
     </div>
-  </div>
 
-  <!-- מודאל תגובת הורה למשימה -->
-  <div class="modal-backdrop" id="replyModalBg">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="replyTitle">
-      <button class="close-modal-btn" onclick="closeModal('replyModalBg')" aria-label="סגור">✕</button>
+    <div class="modal-backdrop" id="manageKidsBg">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manageKidsTitle">
+        <button class="close-modal-btn" onclick="closeModal('manageKidsBg')" aria-label="סגור">✕</button>
 
-      <h2 id="replyTitle">תגובה למשימה</h2>
+        <h2 id="manageKidsTitle">ניהול ילדים</h2>
 
-      <div
-        id="replyTaskName"
-        style="font-size:14px;color:var(--text-mid);margin-bottom:8px;"
-      ></div>
+        <div id="kidsList"></div>
 
-      <label for="replyText">הודעת הורה</label>
-      <textarea
-        id="replyText"
-        placeholder="כל הכבוד על המאמץ 💖"
-      ></textarea>
+        <label for="newKidName">שם ילד חדש</label>
+        <input id="newKidName" placeholder="למשל: גיל" />
 
-      <button class="save-reply-btn" onclick="saveReply()">שמור תגובה</button>
+        <label for="newKidIcon">אייקון/לב לילד</label>
+        <input id="newKidIcon" placeholder="💛" />
+
+        <label for="newKidColor">צבע CSS (אפשר 'Pink' / '#a8e1ff')</label>
+        <input id="newKidColor" placeholder="var(--yellow)" />
+
+        <button class="manage-kids-btn" onclick="addKid()">הוסף ילד</button>
+      </div>
     </div>
-  </div>
+  </template>
 
-  <!-- מודאל ניהול ילדים -->
-  <div class="modal-backdrop" id="manageKidsBg">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manageKidsTitle">
-      <button class="close-modal-btn" onclick="closeModal('manageKidsBg')" aria-label="סגור">✕</button>
-
-      <h2 id="manageKidsTitle">ניהול ילדים</h2>
-
-      <div id="kidsList"></div>
-
-      <label for="newKidName">שם ילד חדש</label>
-      <input id="newKidName" placeholder="למשל: גיל" />
-
-      <label for="newKidIcon">אייקון/לב לילד</label>
-      <input id="newKidIcon" placeholder="💛" />
-
-      <label for="newKidColor">צבע CSS (אפשר 'Pink' / '#a8e1ff')</label>
-      <input id="newKidColor" placeholder="var(--yellow)" />
-
-      <button class="manage-kids-btn" onclick="addKid()">הוסף ילד</button>
-    </div>
-  </div>
-
-  <!-- קוד הלוגיקה (app.js) שטוען גם את db.js -->
+  <!-- קוד הלוגיקה (app.js) -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
