@@ -266,7 +266,7 @@ button {
   background: #ff9a9a;
 }
 
-/* בועות פידבק */
+/* בועות פידבק למשימות */
 .feedback-bubble {
   background: #fff6d9;
   border-radius: 12px;
@@ -282,6 +282,98 @@ button {
   display: block;
   margin-bottom: 2px;
   color: #444;
+}
+
+/* בלוק הודעות (צ'אט הורה-ילד במסך הורה) */
+.messages-block {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 3px 6px var(--shadow);
+  padding: 10px;
+  margin-top: 12px;
+  font-size: 13px;
+  text-align: right;
+}
+.messages-title {
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.messages-list {
+  max-height: 140px;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: #fffef8;
+  box-shadow: inset 0 0 4px var(--shadow);
+  padding: 6px;
+  margin-bottom: 8px;
+}
+.msg-empty {
+  color: var(--text-mid);
+  font-style: italic;
+  font-size: 13px;
+  text-align: center;
+}
+.msg-row {
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px var(--shadow);
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  line-height: 1.3;
+  display: flex;
+  flex-direction: column;
+}
+.msg-row.from-child {
+  border-right: 4px solid var(--blue);
+}
+.msg-row.from-parent {
+  border-right: 4px solid var(--pink);
+}
+.msg-meta {
+  font-size: 12px;
+  color: var(--text-mid);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.msg-text {
+  font-size: 13px;
+  color: var(--text-dark);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.msg-reply-area {
+  border-top: 2px dashed #eee;
+  padding-top: 8px;
+}
+.msg-reply-input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  padding: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  min-height: 48px;
+  resize: none;
+  box-sizing: border-box;
+  background: #fff;
+}
+.msg-reply-send-btn {
+  width: 100%;
+  margin-top: 8px;
+  background: var(--purple);
+  border: none;
+  border-radius: 12px;
+  padding: 8px 0;
+  font-weight: 600;
+  font-size: 14px;
+  color: #222;
+  box-shadow: 0 2px 4px var(--shadow);
+  cursor: pointer;
 }
 
 /* טאבים ילדים במסך ילד */
@@ -373,7 +465,7 @@ button {
   margin-bottom: 2px;
 }
 
-/* הודעה להורה */
+/* הודעה להורה במסך ילד */
 .send-feedback-area {
   background: #fff;
   border-radius: 16px;
