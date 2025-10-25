@@ -9,7 +9,9 @@ import {
   getDocs,
   addDoc,
   updateDoc,
-  deleteDoc
+  deleteDoc,
+  query,
+  orderBy
 } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
 // הקונפיג מהפרויקט שלך ב-Firebase
@@ -158,41 +160,50 @@ export async function setParentNote(kidId, taskId, noteText) {
 }
 
 // ----------------------------------------------------
-// הודעות בין הילד להורה
+// הודעות ילד-הורה
 // ----------------------------------------------------
 
-// הוספת הודעה (ילד או הורה)
-export async function addMessage(kidId, text, from = "child") {
-  const messagesCol = collection(db, "kids", kidId, "messages");
-  const msg = {
-    from, // "child" או "parent"
-    text,
+export async function addMessage(kidId, text, from, replyToMessageId = "") {
+  if (!kidId) {
+    throw new Error("kidId is required to add a message");
+  }
+  const cleanText = (text ?? "").trim();
+  if (!cleanText) {
+    throw new Error("message text is empty");
+  }
+  const normalizedFrom = from === "parent" ? "parent" : "child";
+
+  const msgsCol = collection(db, "kids", kidId, "messages");
+  const payload = {
+    from: normalizedFrom,
+    text: cleanText,
     ts: Date.now(),
-    replyToMessageId: ""
+    replyToMessageId: replyToMessageId || ""
   };
-  const res = await addDoc(messagesCol, msg);
+
+  const res = await addDoc(msgsCol, payload);
   return res.id;
 }
 
-// שליפת כל ההודעות של ילד
 export async function listMessages(kidId) {
-  const messagesCol = collection(db, "kids", kidId, "messages");
-  const snap = await getDocs(messagesCol);
+  if (!kidId) {
+    return [];
+  }
+  const msgsCol = collection(db, "kids", kidId, "messages");
+  const q = query(msgsCol, orderBy("ts", "asc"));
+  const snap = await getDocs(q);
 
-  let msgs = [];
+  const messages = [];
   snap.forEach(docSnap => {
-    msgs.push({
+    messages.push({
       id: docSnap.id,
       ...docSnap.data()
     });
   });
 
-  // מיון מהישן לחדש
-  msgs.sort((a,b) => (a.ts||0) - (b.ts||0));
-  return msgs;
+  return messages;
 }
 
-// שליחת הודעה בתור הורה
-export async function addParentReply(kidId, text) {
-  return addMessage(kidId, text, "parent");
+export async function addParentReply(kidId, text, replyToMessageId = "") {
+  return addMessage(kidId, text, "parent", replyToMessageId);
 }

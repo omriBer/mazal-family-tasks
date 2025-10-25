@@ -36,6 +36,7 @@ const kidHeaderName   = document.getElementById("kidHeaderName");
 const kidHeadlineEl   = document.getElementById("kidHeadline");
 const kidSublineEl    = document.getElementById("kidSubline");
 const kidTasksArea    = document.getElementById("kidTasksArea");
+const kidMessagesArea = document.getElementById("kidMessagesArea");
 
 const taskModalBg     = document.getElementById("taskModalBg");
 const taskChildSel    = document.getElementById("taskChild");
@@ -78,6 +79,19 @@ function showView(which){
     kidTabBtn.classList.add("active");
     parentTabBtn.classList.remove("active");
   }
+}
+
+function escapeHtml(str = "") {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatMessageText(str = "") {
+  return escapeHtml(str).replace(/\n/g, "<br/>");
 }
 
 // --------------------------------------------------
@@ -135,6 +149,9 @@ window.showCard = async function showCard(which){
       await renderKidView(currentKidId);
     } else {
       kidTasksArea.innerHTML = "אין ילדים עדיין 🤔";
+      if (kidMessagesArea) {
+        kidMessagesArea.innerHTML = "";
+      }
     }
   }
 
@@ -169,8 +186,9 @@ async function ensureTasksLoaded(kidId) {
   }
 }
 
-async function ensureMessagesLoaded(kidId) {
-  if (!messagesCache[kidId]) {
+async function ensureMessagesLoaded(kidId, { force = false } = {}) {
+  if (!kidId) return;
+  if (!messagesCache[kidId] || force) {
     messagesCache[kidId] = await listMessages(kidId);
   }
 }
@@ -188,7 +206,9 @@ async function renderParentView() {
 
   for (const kid of kidsCache) {
     await ensureTasksLoaded(kid.id);
+    await ensureMessagesLoaded(kid.id, { force: true });
     const kidTasks = tasksCache[kid.id] || [];
+    const msgs     = messagesCache[kid.id] || [];
 
     kidTasks.forEach(t => {
       totalTasks++;
@@ -203,7 +223,7 @@ async function renderParentView() {
     header.className = "kid-header";
     header.innerHTML = `
       <span class="kid-color-heart" style="color:${kid.color || 'inherit'}">${kid.icon || "💛"}</span>
-      <span>${kid.name}</span>
+      <span>${escapeHtml(kid.name || "")}</span>
     `;
     kidBlock.appendChild(header);
 
@@ -214,8 +234,8 @@ async function renderParentView() {
 
       row.innerHTML = `
         <div class="task-main">
-          <div class="task-title">${task.title} ${task.icon || ""}</div>
-          <div class="task-meta">${task.meta || ""}</div>
+          <div class="task-title">${escapeHtml(task.title || "")} ${task.icon || ""}</div>
+          <div class="task-meta">${escapeHtml(task.meta || "")}</div>
         </div>
 
         <div class="task-check">
@@ -230,7 +250,7 @@ async function renderParentView() {
             data-action="reply"
             data-kid="${kid.id}"
             data-task="${task.id}"
-            data-title="${task.title}">
+            data-title="${escapeHtml(task.title || "")}">
             תגובה 💬
           </button>
 
@@ -252,14 +272,14 @@ async function renderParentView() {
 
         if (task.childNote){
           fb.innerHTML += `
-            <span class="feedback-label">הודעת ${kid.name}:</span>
-            ${task.childNote}
+            <span class="feedback-label">הודעת ${escapeHtml(kid.name || "") }:</span>
+            ${escapeHtml(task.childNote || "")}
           `;
         }
         if (task.parentNote){
           fb.innerHTML += `
             <span class="feedback-label" style="color:var(--green)">תגובה הורה:</span>
-            ${task.parentNote}
+            ${escapeHtml(task.parentNote || "")}
           `;
         }
         kidBlock.appendChild(fb);
@@ -269,26 +289,27 @@ async function renderParentView() {
     // --------------------------------------------------
     // הודעות כלליות (צ'אט ילד-הורה)
     // --------------------------------------------------
-    await ensureMessagesLoaded(kid.id);
-    const msgs = messagesCache[kid.id] || [];
+    const messageTitle = escapeHtml(kid.name || "");
+    const messagesHtml = msgs.length === 0
+      ? "<div class='msg-empty'>אין עדיין הודעות</div>"
+      : msgs.map(m => {
+          const bubbleClass = m.from === "child" ? "from-child" : "from-parent";
+          const senderLabel = m.from === "child" ? "ילד:" : "הורה:";
+          const textHtml    = formatMessageText(m.text || "");
+          return `
+            <div class="msg-row ${bubbleClass}">
+              <div class="msg-meta">${senderLabel}</div>
+              <div class="msg-text">${textHtml}</div>
+            </div>
+          `;
+        }).join("");
 
     const msgWrap = document.createElement("div");
     msgWrap.className = "messages-block";
     msgWrap.innerHTML = `
-      <div class="messages-title">הודעות עם ${kid.name} 💬</div>
+      <div class="messages-title">הודעות עם ${messageTitle} 💬</div>
       <div class="messages-list">
-        ${
-          msgs.length === 0
-          ? "<div class='msg-empty'>אין עדיין הודעות</div>"
-          : msgs.map(m => `
-              <div class="msg-row ${m.from === "child" ? "from-child" : "from-parent"}">
-                <div class="msg-meta">
-                  ${m.from === "child" ? "ילד:" : "הורה:"}
-                </div>
-                <div class="msg-text">${m.text}</div>
-              </div>
-            `).join("")
-        }
+        ${messagesHtml}
       </div>
 
       <div class="msg-reply-area">
@@ -371,20 +392,23 @@ async function renderParentView() {
           return;
         }
 
-        // שמירת הודעה כ"הורה"
-        await addParentReply(kidId, txt);
+        btn.disabled = true;
+        try {
+          await addParentReply(kidId, txt);
+          ta.value = "";
 
-        ta.value = "";
+          await ensureMessagesLoaded(kidId, { force: true });
 
-        // רענון הודעות וקאש
-        messagesCache[kidId] = await listMessages(kidId);
+          await renderParentView();
 
-        // רנדר מחדש
-        await renderParentView();
-
-        // במידה והילד הזה כרגע מוצג במסך הילד:
-        if (kidId === currentKidId) {
-          await renderKidView(kidId);
+          if (kidId === currentKidId) {
+            await renderKidView(kidId);
+          }
+        } catch (err) {
+          console.error("addParentReply error", err);
+          alert("אירעה שגיאה בשליחת ההודעה 😔");
+        } finally {
+          btn.disabled = false;
         }
       });
     });
@@ -422,7 +446,9 @@ async function renderKidView(kidId) {
   if (!kid) return;
 
   await ensureTasksLoaded(kidId);
+  await ensureMessagesLoaded(kidId, { force: true });
   const kidTasks = tasksCache[kidId] || [];
+  const msgs     = messagesCache[kidId] || [];
 
   kidHeaderName.textContent = `היי ${kid.name} ${kid.icon || ""}`;
   kidHeadlineEl.textContent = kid.childHeadline || "";
@@ -440,7 +466,7 @@ async function renderKidView(kidId) {
 
     wrap.innerHTML = `
       <div class="child-task-head">
-        <div class="child-task-title">${task.title} ${task.icon || ""}</div>
+        <div class="child-task-title">${escapeHtml(task.title || "")} ${task.icon || ""}</div>
         <button
           class="${doneClass}"
           data-kid="${kidId}"
@@ -449,16 +475,15 @@ async function renderKidView(kidId) {
           ${task.done ? "✔ בוצע" : "סיימתי"}
         </button>
       </div>
-      <div class="child-task-meta">${task.meta || ""}</div>
+      <div class="child-task-meta">${escapeHtml(task.meta || "")}</div>
     `;
 
-    // פידבק כללי מההורה (parentPraise) מתחת למשימה הראשונה
     if (task === kidTasks[0] && kid.parentPraise) {
       const praise = document.createElement("div");
       praise.className = "parent-feedback-box";
       praise.innerHTML = `
         <span class="parent-feedback-label">מה ההורה חושב עליך 😍</span>
-        ${kid.parentPraise}
+        ${escapeHtml(kid.parentPraise || "")}
       `;
       wrap.appendChild(praise);
     }
@@ -466,7 +491,31 @@ async function renderKidView(kidId) {
     kidTasksArea.appendChild(wrap);
   });
 
-  // כפתור "סיימתי" של הילד
+  if (kidMessagesArea) {
+    const messagesHtml = msgs.length === 0
+      ? "<div class='msg-empty'>עוד אין הודעות משותפות</div>"
+      : msgs.map(m => {
+          const bubbleClass = m.from === "child" ? "from-child" : "from-parent";
+          const senderLabel = m.from === "child" ? "אני:" : "הורה:";
+          const textHtml    = formatMessageText(m.text || "");
+          return `
+            <div class="msg-row ${bubbleClass}">
+              <div class="msg-meta">${senderLabel}</div>
+              <div class="msg-text">${textHtml}</div>
+            </div>
+          `;
+        }).join("");
+
+    kidMessagesArea.innerHTML = `
+      <div class="kid-messages-block">
+        <div class="kid-messages-title">הודעות עם ההורה 💬</div>
+        <div class="kid-messages-list">
+          ${messagesHtml}
+        </div>
+      </div>
+    `;
+  }
+
   kidTasksArea
     .querySelectorAll("button.child-task-done-btn")
     .forEach(btn => {
@@ -480,7 +529,6 @@ async function renderKidView(kidId) {
 
         await toggleTaskDone(kId, tId, wasDone);
 
-        // רענון
         tasksCache[kId] = await listTasks(kId);
         await renderKidView(kId);
 
@@ -500,22 +548,34 @@ window.sendKidMessage = async function sendKidMessage() {
     return;
   }
   const ta = document.getElementById("kidNote");
+  if (!ta) return;
   const txt = ta.value.trim();
   if (!txt) {
     alert("כתוב משהו קודם ❤️");
     return;
   }
 
-  // שמירה בענן בתור "ילד"
-  await addMessage(currentKidId, txt, "child");
+  const sendBtn = document.querySelector(".send-feedback-area .send-btn");
+  if (sendBtn) sendBtn.disabled = true;
 
-  // ניקוי השדה
-  ta.value = "";
+  try {
+    await addMessage(currentKidId, txt, "child");
 
-  // רענון קאש ההודעות של הילד הזה
-  messagesCache[currentKidId] = await listMessages(currentKidId);
+    ta.value = "";
 
-  alert("נשלח להורה ✨");
+    await ensureMessagesLoaded(currentKidId, { force: true });
+
+    await renderKidView(currentKidId);
+
+    if (unlockedParent) {
+      await renderParentView();
+    }
+  } catch (err) {
+    console.error("child send message error", err);
+    alert("לא הצלחנו לשלוח את ההודעה כרגע 😔");
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
+  }
 };
 
 // --------------------------------------------------
@@ -563,29 +623,31 @@ window.saveNewTask = async function saveNewTask() {
 };
 
 window.closeModal = function closeModal(id){
-  document.getElementById(id).style.display = "none";
+  const el = document.getElementById(id);
+  if (el) el.style.display = "none";
 };
 
 // --------------------------------------------------
-// מודאל תגובת הורה למשימה
+// מודאל תגובה למשימה
 // --------------------------------------------------
-function openReplyModal() {
+function openReplyModal(){
   replyTaskName.textContent = replyCtx.title;
   replyTextEl.value = "";
   replyModalBg.style.display = "flex";
 }
-window.saveReply = async function saveReply() {
-  const note = replyTextEl.value.trim();
+window.openReplyModal = openReplyModal;
 
-  await setParentNote(replyCtx.kidId, replyCtx.taskId, note);
-
+window.saveReply = async function saveReply(){
+  const text = replyTextEl.value.trim();
+  if (!text) {
+    alert("כתוב תגובה 🙂");
+    return;
+  }
+  await setParentNote(replyCtx.kidId, replyCtx.taskId, text);
   replyModalBg.style.display = "none";
 
   tasksCache[replyCtx.kidId] = await listTasks(replyCtx.kidId);
-
-  if (unlockedParent) {
-    await renderParentView();
-  }
+  await renderParentView();
   if (replyCtx.kidId === currentKidId) {
     await renderKidView(replyCtx.kidId);
   }
@@ -614,7 +676,7 @@ function drawKidsList() {
     row.innerHTML = `
       <div class="kid-row-left">
         <span style="color:${k.color || 'inherit'}">${k.icon || "💛"}</span>
-        <span>${k.name}</span>
+        <span>${escapeHtml(k.name || "")}</span>
       </div>
       <div class="kid-row-actions">
         <button class="kid-link-btn" data-link="${link}">
@@ -629,7 +691,6 @@ function drawKidsList() {
     kidsList.appendChild(row);
   });
 
-  // כפתור העתקת קישור
   kidsList.querySelectorAll(".kid-link-btn").forEach(btn => {
     btn.addEventListener("click", e => {
       const link = btn.getAttribute("data-link");
@@ -638,18 +699,15 @@ function drawKidsList() {
     });
   });
 
-  // מחיקת ילד
   kidsList.querySelectorAll(".kid-remove-btn").forEach(btn => {
     btn.addEventListener("click", async e => {
       const kidId = btn.getAttribute("data-kid");
       await deleteKid(kidId);
 
-      // עדכון קאש
       kidsCache = kidsCache.filter(x => x.id !== kidId);
       delete tasksCache[kidId];
       delete messagesCache[kidId];
 
-      // אם מחקנו את הילד שמוצג כרגע
       if (currentKidId === kidId) {
         currentKidId = kidsCache[0]?.id || null;
       }
@@ -664,6 +722,7 @@ function drawKidsList() {
         await renderKidView(currentKidId);
       } else {
         kidTasksArea.innerHTML   = "";
+        if (kidMessagesArea) kidMessagesArea.innerHTML = "";
         kidHeadlineEl.textContent = "";
         kidSublineEl.textContent  = "";
         kidHeaderName.textContent = "אין ילדים כרגע 🙃";
@@ -705,12 +764,10 @@ window.addKid = async function addKidHandler(){
 (async function init(){
   await ensureKidsLoaded();
 
-  // בדיקת ?kid=slug
   const params  = new URLSearchParams(window.location.search);
   const kidSlug = params.get("kid");
 
   if (kidSlug) {
-    // הסתרת בקרת הורה לגמרי במצב קישור אישי
     const viewToggle = document.querySelector(".view-toggle");
     if (viewToggle) viewToggle.style.display = "none";
 
@@ -718,7 +775,6 @@ window.addKid = async function addKidHandler(){
     parentLocked.style.display    = "none";
     parentContent.style.display   = "none";
 
-    // מציאת הילד לפי slug או לפי id
     const kid = kidsCache.find(k =>
       k.slug === kidSlug || k.id === kidSlug
     );
@@ -729,9 +785,7 @@ window.addKid = async function addKidHandler(){
 
       renderKidTabs();
       await renderKidView(currentKidId);
-
-      // נטען גם הודעות כדי שאם נוסיף בעתיד להצגת צ'אט לילד זה כבר בקאש
-      await ensureMessagesLoaded(currentKidId);
+      await ensureMessagesLoaded(currentKidId, { force: true });
 
       return;
     } else {
@@ -739,16 +793,14 @@ window.addKid = async function addKidHandler(){
     }
   }
 
-  // ברירת מחדל: כרטיס הורה (נעול)
   showView("parent");
   parentLocked.style.display  = "block";
   parentContent.style.display = "none";
 
-  // נכין גם את מסך הילד כברירת מחדל
   if (kidsCache.length > 0) {
     currentKidId = kidsCache[0].id;
     renderKidTabs();
     await renderKidView(currentKidId);
-    await ensureMessagesLoaded(currentKidId);
+    await ensureMessagesLoaded(currentKidId, { force: true });
   }
 })();
