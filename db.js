@@ -123,7 +123,10 @@ export async function listTasks(kidId) {
 }
 
 // הוספת משימה לילד
-export async function addTask(kidId, { title, meta="", icon="🆕" }) {
+export async function addTask(
+  kidId,
+  { title, meta = "", icon = "🆕", availableFromDay = null }
+) {
   const tasksCol = collection(db, "kids", kidId, "tasks");
   const newTask = {
     title,
@@ -131,7 +134,8 @@ export async function addTask(kidId, { title, meta="", icon="🆕" }) {
     icon,
     done: false,
     childNote: "",
-    parentNote: ""
+    parentNote: "",
+    availableFromDay: availableFromDay ?? null
   };
   const res = await addDoc(tasksCol, newTask);
   return res.id;

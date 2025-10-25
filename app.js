@@ -51,6 +51,13 @@ let taskModalBg     = null;
 let taskChildSel    = null;
 let taskTitleInp    = null;
 let taskMetaInp     = null;
+let taskScopeSingleRadio = null;
+let taskScopeAllRadio    = null;
+let taskScopeSingleText  = null;
+let taskScopeSingleIcon  = null;
+let taskScheduleNowRadio        = null;
+let taskScheduleTomorrowRadio   = null;
+let taskScheduleDayAfterRadio   = null;
 
 let replyModalBg    = null;
 let replyTaskName   = null;
@@ -65,6 +72,8 @@ let newKidColorInp  = null;
 let kidMissingCard  = null;
 
 const PARENT_PASSWORD = "9999";
+
+const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
 let requestedKidSlug   = "";
 let kidPrivateMode     = false;
@@ -100,6 +109,17 @@ function mountParentModals() {
   taskChildSel  = document.getElementById("taskChild");
   taskTitleInp  = document.getElementById("taskTitle");
   taskMetaInp   = document.getElementById("taskMeta");
+  taskScopeSingleRadio = document.getElementById("taskScopeSingle");
+  taskScopeAllRadio    = document.getElementById("taskScopeAll");
+  taskScopeSingleText  = document.getElementById("taskScopeSingleText");
+  taskScopeSingleIcon  = document.getElementById("taskScopeSingleIcon");
+  taskScheduleNowRadio      = document.getElementById("taskScheduleNow");
+  taskScheduleTomorrowRadio = document.getElementById("taskScheduleTomorrow");
+  taskScheduleDayAfterRadio = document.getElementById("taskScheduleDayAfter");
+
+  if (taskChildSel) {
+    taskChildSel.addEventListener("change", updateTaskScopeSingleLabel);
+  }
 
   replyModalBg  = document.getElementById("replyModalBg");
   replyTaskName = document.getElementById("replyTaskName");
@@ -295,6 +315,104 @@ function sortTasksForDisplay(tasks = []) {
     if (!!a.done === !!b.done) return 0;
     return a.done ? 1 : -1;
   });
+}
+
+function getStartOfLocalDayMs(offsetDays = 0) {
+  const now = new Date();
+  const start = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + (offsetDays || 0),
+    0,
+    0,
+    0,
+    0
+  );
+  return start.getTime();
+}
+
+function computeAvailableFromDay(selection) {
+  switch (selection) {
+    case "tomorrow":
+      return getStartOfLocalDayMs(1);
+    case "dayAfterTomorrow":
+      return getStartOfLocalDayMs(2);
+    default:
+      return null;
+  }
+}
+
+function shouldTaskBeVisibleForKid(task, nowStartOfDayMs) {
+  if (!task) return false;
+  const value = task.availableFromDay;
+  if (value === null || value === undefined || value === "") {
+    return true;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return true;
+  }
+  return numeric <= nowStartOfDayMs;
+}
+
+function getTaskAvailabilityLabel(availableFromDay, nowStartOfDayMs) {
+  if (availableFromDay === null || availableFromDay === undefined || availableFromDay === "") {
+    return "";
+  }
+  const numeric = Number(availableFromDay);
+  if (!Number.isFinite(numeric)) {
+    return "";
+  }
+  if (numeric <= nowStartOfDayMs) {
+    return "";
+  }
+  const diffDays = Math.round((numeric - nowStartOfDayMs) / MS_IN_DAY);
+  if (diffDays <= 0) {
+    return "";
+  }
+  if (diffDays === 1) {
+    return "זמין מחר";
+  }
+  if (diffDays === 2) {
+    return "זמין מחרתיים";
+  }
+  const date = new Date(numeric);
+  const formatted = date.toLocaleDateString("he-IL", { day: "numeric", month: "numeric" });
+  return `זמין ב-${formatted}`;
+}
+
+function getSelectedScopeValue() {
+  if (taskScopeAllRadio && taskScopeAllRadio.checked) {
+    return "all";
+  }
+  return "single";
+}
+
+function getSelectedScheduleValue() {
+  if (taskScheduleTomorrowRadio && taskScheduleTomorrowRadio.checked) {
+    return "tomorrow";
+  }
+  if (taskScheduleDayAfterRadio && taskScheduleDayAfterRadio.checked) {
+    return "dayAfterTomorrow";
+  }
+  return "now";
+}
+
+function updateTaskScopeSingleLabel() {
+  if (!taskScopeSingleText) return;
+  const kidId = taskChildSel ? taskChildSel.value : "";
+  const kid = kidsCache.find(k => k.id === kidId);
+  if (kid) {
+    taskScopeSingleText.textContent = `רק ל${kid.name}`;
+    if (taskScopeSingleIcon) {
+      taskScopeSingleIcon.textContent = kid.icon || "🙂";
+    }
+  } else {
+    taskScopeSingleText.textContent = "רק לילד הזה";
+    if (taskScopeSingleIcon) {
+      taskScopeSingleIcon.textContent = "🙂";
+    }
+  }
 }
 
 function buildChatHtml(messages = [], { allowDelete = false, kidId = "", emptyText = "" } = {}) {
@@ -686,6 +804,7 @@ async function renderParentView({ useCacheOnly = false } = {}) {
 
   let totalTasks = 0;
   let doneTasks  = 0;
+  const nowStartOfDayMs = getStartOfLocalDayMs(0);
 
   for (const kid of kidsCache) {
     if (!useCacheOnly || !tasksCache[kid.id]) {
@@ -717,8 +836,10 @@ async function renderParentView({ useCacheOnly = false } = {}) {
     }
 
     kidTasks.forEach(t => {
-      totalTasks++;
-      if (t.done) doneTasks++;
+      if (shouldTaskBeVisibleForKid(t, nowStartOfDayMs)) {
+        totalTasks++;
+        if (t.done) doneTasks++;
+      }
     });
 
     // בלוק ילד
@@ -737,12 +858,24 @@ async function renderParentView({ useCacheOnly = false } = {}) {
     // משימות
     kidTasks.forEach(task => {
       const row = document.createElement("div");
+      const isVisibleToday = shouldTaskBeVisibleForKid(task, nowStartOfDayMs);
       row.className = "task-row" + (task.done ? " task-done" : "");
+      if (!isVisibleToday) {
+        row.classList.add("future-task");
+      }
       row.dataset.kidId = kid.id;
       row.dataset.taskId = task.id;
 
       const icon = task.icon ? escapeHtml(task.icon) : "⭐️";
-      const metaHtml = task.meta ? `<div class="task-meta">${escapeHtml(task.meta || "")}</div>` : "";
+      const availabilityLabel = getTaskAvailabilityLabel(task.availableFromDay, nowStartOfDayMs);
+      const extraPieces = [];
+      if (task.meta) {
+        extraPieces.push(`<div class="task-meta">${escapeHtml(task.meta || "")}</div>`);
+      }
+      if (availabilityLabel) {
+        extraPieces.push(`<div class="task-schedule-chip">${escapeHtml(availabilityLabel)}</div>`);
+      }
+      const metaHtml = extraPieces.join("");
 
       row.innerHTML = `
         <div class="task-main">
@@ -1005,10 +1138,18 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
   const kidTasks = sortTasksForDisplay(tasksCache[kidId] || []);
   const msgs     = messagesCache[kidId] || [];
 
+  const nowStartOfDayMs = getStartOfLocalDayMs(0);
+  const visibleTasks = kidTasks.filter(task => shouldTaskBeVisibleForKid(task, nowStartOfDayMs));
+  const visibleTaskIds = new Set(visibleTasks.map(t => t.id));
+
   const pulseSetForKid = kidTaskPulseMap.get(kidId);
-  if (
+  const hasVisiblePulse =
     pulseSetForKid &&
     pulseSetForKid.size > 0 &&
+    Array.from(pulseSetForKid).some(id => visibleTaskIds.has(id));
+
+  if (
+    hasVisiblePulse &&
     kidId === currentKidId &&
     activeView === "kid"
   ) {
@@ -1025,9 +1166,12 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
 
   if (kidTasksArea) {
     kidTasksArea.innerHTML = "";
+    if (visibleTasks.length === 0) {
+      kidTasksArea.innerHTML = "<div class=\"child-no-tasks-note\">הכול שקט לעכשיו 😌</div>";
+    }
   }
 
-  kidTasks.forEach(task => {
+  visibleTasks.forEach(task => {
     const wrap = document.createElement("div");
     wrap.className = "child-task-row";
     if (task.done) {
@@ -1201,12 +1345,30 @@ window.openAddTaskModal = async function openAddTaskModal() {
   await ensureKidsLoaded();
 
   taskChildSel.innerHTML = "";
+  let defaultKidId = currentKidId && kidsCache.some(k => k.id === currentKidId)
+    ? currentKidId
+    : kidsCache[0]?.id || "";
+
   kidsCache.forEach(k => {
     const opt = document.createElement("option");
     opt.value = k.id;
     opt.textContent = k.name;
     taskChildSel.appendChild(opt);
   });
+
+  if (defaultKidId && taskChildSel.querySelector(`option[value="${defaultKidId}"]`)) {
+    taskChildSel.value = defaultKidId;
+  } else if (kidsCache[0]) {
+    taskChildSel.value = kidsCache[0].id;
+  }
+
+  if (taskScopeSingleRadio) taskScopeSingleRadio.checked = true;
+  if (taskScopeAllRadio) taskScopeAllRadio.checked = false;
+  if (taskScheduleNowRadio) taskScheduleNowRadio.checked = true;
+  if (taskScheduleTomorrowRadio) taskScheduleTomorrowRadio.checked = false;
+  if (taskScheduleDayAfterRadio) taskScheduleDayAfterRadio.checked = false;
+
+  updateTaskScopeSingleLabel();
 
   taskTitleInp.value = "";
   taskMetaInp.value  = "";
@@ -1216,26 +1378,70 @@ window.openAddTaskModal = async function openAddTaskModal() {
 
 window.saveNewTask = async function saveNewTask() {
   if (!taskModalBg || kidPrivateMode) return;
+  if (!taskChildSel) return;
   const kidId = taskChildSel.value;
   const title = taskTitleInp.value.trim();
   const meta  = taskMetaInp.value.trim();
+  const scope = getSelectedScopeValue();
+  const schedule = getSelectedScheduleValue();
+  const availableFromDay = computeAvailableFromDay(schedule);
 
   if (!title) {
     alert("חייבים שם משימה 🙂");
     return;
   }
 
-  await addTask(kidId, { title, meta });
+  const payload = { title, meta, availableFromDay };
+  const saveBtn = taskModalBg.querySelector(".save-task-btn");
+  if (saveBtn) saveBtn.disabled = true;
 
-  taskModalBg.style.display = "none";
+  try {
+    if (scope === "all") {
+      if (!kidsCache || kidsCache.length === 0) {
+        alert("אין ילדים פעילים במערכת כרגע 👀");
+        return;
+      }
 
-  tasksCache[kidId] = await listTasks(kidId);
+      await Promise.all(kidsCache.map(k => addTask(k.id, payload)));
 
-  if (unlockedParent) {
-    await renderParentView();
-  }
-  if (kidId === currentKidId) {
-    await renderKidView(kidId);
+      taskModalBg.style.display = "none";
+
+      await Promise.all(
+        kidsCache.map(async kid => {
+          tasksCache[kid.id] = await listTasks(kid.id);
+        })
+      );
+
+      if (unlockedParent) {
+        await renderParentView();
+      }
+      if (currentKidId) {
+        await renderKidView(currentKidId);
+      }
+    } else {
+      if (!kidId) {
+        alert("בחר ילד קודם 🙂");
+        return;
+      }
+
+      await addTask(kidId, payload);
+
+      taskModalBg.style.display = "none";
+
+      tasksCache[kidId] = await listTasks(kidId);
+
+      if (unlockedParent) {
+        await renderParentView();
+      }
+      if (kidId === currentKidId) {
+        await renderKidView(kidId);
+      }
+    }
+  } catch (err) {
+    console.error("saveNewTask error", err);
+    alert("לא הצלחנו לשמור את המשימה כרגע 😔");
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
   }
 };
 
