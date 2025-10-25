@@ -762,7 +762,7 @@ button {
 .floating-notice-wrapper {
   position: fixed;
   left: 50%;
-  top: 30%;
+  top: 40%;
   transform: translate(-50%, -50%);
   z-index: 9999;
   display: none;
