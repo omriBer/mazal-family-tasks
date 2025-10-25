@@ -100,6 +100,25 @@ body {
   0%,100% { transform: scale(1); }
   50% { transform: scale(1.08); }
 }
+@keyframes bubblePop {
+  0% { transform: scale(0.7); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes hintPulse {
+  0%, 100% { transform: scale(1); opacity: 0; }
+  40% { transform: scale(1.2); opacity: 1; }
+  70% { transform: scale(1); opacity: 0.6; }
+}
+@keyframes gentlePulseOnce {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+@keyframes softFadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-6px); }
+}
 .brand-text .title {
   font-size: 26px;
   font-weight: 700;
@@ -332,6 +351,8 @@ button {
   overflow-y: auto;
   padding: 6px 4px;
   margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
 }
 .msg-empty {
   color: var(--text-mid);
@@ -431,6 +452,8 @@ button {
 /* הודעות במסך ילד */
 .kid-messages-wrapper {
   margin-top: 14px;
+  position: relative;
+  padding-top: 24px;
 }
 .kid-messages-block {
   background: #fff;
@@ -450,6 +473,8 @@ button {
   max-height: 200px;
   overflow-y: auto;
   padding: 6px 4px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* טאבים ילדים במסך ילד */
@@ -709,6 +734,63 @@ button {
   color: var(--text-mid);
   text-align: center;
   opacity: 0.8;
+}
+
+/* בועות והבהובים בזמן אמת */
+.sync-status-container {
+  min-height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+  pointer-events: none;
+}
+.sync-status-bubble {
+  background: linear-gradient(135deg, #ffeaf6, #fff7d6);
+  color: #573d5c;
+  padding: 8px 14px;
+  border-radius: 18px;
+  box-shadow: 0 4px 8px var(--shadow);
+  font-size: 13px;
+  font-weight: 600;
+  animation: bubblePop 0.35s ease;
+}
+.sync-status-bubble.fade-out {
+  animation: softFadeOut 0.4s ease forwards;
+}
+
+.new-msg-bubble-child {
+  position: absolute;
+  top: -10px;
+  left: 16px;
+  right: 16px;
+  margin: 0 auto;
+  max-width: 260px;
+  background: linear-gradient(135deg, #ffe0f5, #fff4d4);
+  color: #6d4b70;
+  padding: 10px 14px;
+  border-radius: 22px;
+  text-align: center;
+  font-weight: 600;
+  box-shadow: 0 4px 10px var(--shadow);
+  animation: bubblePop 0.35s ease;
+  z-index: 2;
+}
+.new-msg-bubble-child.fade-out {
+  animation: softFadeOut 0.4s ease forwards;
+}
+
+.new-msg-hint-parent {
+  font-size: 18px;
+  animation: hintPulse 1.4s ease-in-out 3;
+}
+
+.task-pulse {
+  animation: gentlePulseOnce 0.8s ease;
+}
+
+.child-task-pulse {
+  animation: gentlePulseOnce 0.8s ease;
 }
 
 /* רספונסיביות */

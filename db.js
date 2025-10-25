@@ -11,7 +11,8 @@ import {
   updateDoc,
   deleteDoc,
   query,
-  orderBy
+  orderBy,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
 // הקונפיג מהפרויקט שלך ב-Firebase
@@ -189,7 +190,7 @@ export async function listMessages(kidId) {
     return [];
   }
   const msgsCol = collection(db, "kids", kidId, "messages");
-  const q = query(msgsCol, orderBy("ts", "asc"));
+  const q = query(msgsCol, orderBy("ts", "desc"));
   const snap = await getDocs(q);
 
   const messages = [];
@@ -211,4 +212,67 @@ export async function deleteMessage(kidId, messageId) {
   if (!kidId || !messageId) return;
   const ref = doc(db, "kids", kidId, "messages", messageId);
   await deleteDoc(ref);
+}
+
+// ----------------------------------------------------
+// Real-time subscriptions
+// ----------------------------------------------------
+
+export function subscribeMessages(kidId, callback) {
+  if (!kidId || typeof callback !== "function") {
+    return () => {};
+  }
+
+  const msgsCol = collection(db, "kids", kidId, "messages");
+  const q = query(msgsCol, orderBy("ts", "desc"));
+
+  const unsubscribe = onSnapshot(
+    q,
+    snap => {
+      const messages = [];
+      snap.forEach(docSnap => {
+        messages.push({
+          id: docSnap.id,
+          ...docSnap.data()
+        });
+      });
+
+      callback(messages, null);
+    },
+    error => {
+      console.error("subscribeMessages error", error);
+      callback([], error);
+    }
+  );
+
+  return unsubscribe;
+}
+
+export function subscribeTasks(kidId, callback) {
+  if (!kidId || typeof callback !== "function") {
+    return () => {};
+  }
+
+  const tasksCol = collection(db, "kids", kidId, "tasks");
+
+  const unsubscribe = onSnapshot(
+    tasksCol,
+    snap => {
+      const tasks = [];
+      snap.forEach(docSnap => {
+        tasks.push({
+          id: docSnap.id,
+          ...docSnap.data()
+        });
+      });
+
+      callback(tasks, null);
+    },
+    error => {
+      console.error("subscribeTasks error", error);
+      callback([], error);
+    }
+  );
+
+  return unsubscribe;
 }
