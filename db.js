@@ -1,119 +1,77 @@
 // db.js
-// שכבת גישה לדאטה בענן (Firestore)
-// קובץ זה נטען ישירות מהדפדפן, בלי שרת באמצע.
+// חיבור לאפליקציית Firebase שלך + פעולות CRUD ב-Firestore
 
-// 1. ייבוא ה-SDK מה-CDN הרשמי של Firebase
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
 import {
   getFirestore,
   collection,
   doc,
   getDocs,
   addDoc,
-  setDoc,
   updateDoc,
   deleteDoc
-} from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
-// 2. הקונפיגורציה שלך מה-Firebase Console
-// חשוב: כאן אתה תדביק את ה-config שקיבלת כשהגדרת Web App.
-// זה נראה כמו אובייקט עם apiKey, authDomain, projectId וכו'.
+// 🔹 הגדרות מה-Firebase שלך
 const firebaseConfig = {
-  apiKey: "TODO_REPLACE_ME",
-  authDomain: "TODO_REPLACE_ME",
-  projectId: "TODO_REPLACE_ME",
-  storageBucket: "TODO_REPLACE_ME",
-  messagingSenderId: "TODO_REPLACE_ME",
-  appId: "TODO_REPLACE_ME"
+  apiKey: "AIzaSyDdEhEqRRQDKUmTJ73c3LLKxP8s4q5WIec",
+  authDomain: "mazal-family.firebaseapp.com",
+  projectId: "mazal-family",
+  storageBucket: "mazal-family.firebasestorage.app",
+  messagingSenderId: "495595541465",
+  appId: "1:495595541465:web:c33f365ad6f8552bd13fc8"
 };
 
-// 3. אתחול ה-Firebase וה-DB
+// 🔹 אתחול האפליקציה והחיבור למסד הנתונים
 const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
+const db = getFirestore(app);
 
-// -------------------------------------------------------------------
-// מבנה הנתונים שאנחנו עובדים איתו:
-//
-// kids (collection)
-//   kidId (document)  -> fields: name, icon, color, childHeadline, childSubline, parentPraise, order
-//      tasks (subcollection)
-//         taskId (document) -> fields: title, meta, icon, done, childNote, parentNote
-// -------------------------------------------------------------------
+// ======================================================
+// פונקציות לשליפה, הוספה, עדכון ומחיקה של נתונים
+// ======================================================
 
-
-// ---- KIDS ----
-
-// קבלת כל הילדים, ממויינים לפי order (מספר קטן->גבוה)
+// --- ילדים ---
 export async function listKids() {
   const kidsCol = collection(db, "kids");
   const snap = await getDocs(kidsCol);
-
-  // נמיר את ה-docs לאובייקטים
   let kids = [];
   snap.forEach(docSnap => {
-    const data = docSnap.data();
-    kids.push({
-      id: docSnap.id,
-      ...data
-    });
+    kids.push({ id: docSnap.id, ...docSnap.data() });
   });
-
-  // מיון לפי order אם קיים
-  kids.sort((a,b) => {
-    const ao = (a.order ?? 0);
-    const bo = (b.order ?? 0);
-    return ao - bo;
-  });
-
+  kids.sort((a,b) => (a.order ?? 0) - (b.order ?? 0));
   return kids;
 }
 
-// יצירת ילד חדש
 export async function addKid({ name, icon="💛", color="var(--yellow)" }) {
   const kidsCol = collection(db, "kids");
   const newKid = {
     name,
     icon,
     color,
-    childHeadline: "היי " + name + " 😊",
+    childHeadline: `היי ${name} 😊`,
     childSubline: "ברוך הבא למז״ל!",
     parentPraise: "כל הכבוד על ההתחלה 🌟",
-    order: Date.now() // נשים order לפי זמן יצירה כדי שלא יתנגש
+    order: Date.now()
   };
   const res = await addDoc(kidsCol, newKid);
   return res.id;
 }
 
-// מחיקת ילד (כולל המשימות שלו)
-// שים לב: זה מוחק רק את המסמך של הילד. Firestore לא מוחק אוטומטית את ה-subcollection.
-// לפיילוט המשפחתי זה מספיק, אבל בייצור אמיתי היינו צריכים לעבור task-Task ולמחוק.
 export async function deleteKid(kidId) {
   await deleteDoc(doc(db, "kids", kidId));
-  // הערה: זה ישאיר יתומים ב-"tasks" אם נשמרו כ-subcollection.
-  // בפתרון המשפחתי זה כנראה מספיק.
 }
 
-// ---- TASKS ----
-
-// החזרת כל המשימות של ילד מסוים
+// --- משימות ---
 export async function listTasks(kidId) {
   const tasksCol = collection(db, "kids", kidId, "tasks");
   const snap = await getDocs(tasksCol);
-
   let tasks = [];
   snap.forEach(docSnap => {
-    const data = docSnap.data();
-    tasks.push({
-      id: docSnap.id,
-      ...data
-    });
+    tasks.push({ id: docSnap.id, ...docSnap.data() });
   });
-
-  // אין לנו order למשימות כרגע, אפשר להשאיר כמו שבא או למיין לפי title
   return tasks;
 }
 
-// הוספת משימה לילד
 export async function addTask(kidId, { title, meta="", icon="🆕" }) {
   const tasksCol = collection(db, "kids", kidId, "tasks");
   const newTask = {
@@ -121,31 +79,27 @@ export async function addTask(kidId, { title, meta="", icon="🆕" }) {
     meta,
     icon,
     done: false,
-    childNote: null,
-    parentNote: null
+    childNote: "",
+    parentNote: ""
   };
   const res = await addDoc(tasksCol, newTask);
   return res.id;
 }
 
-// עדכון משימה (לדוגמה סימון בוצע, הוספת תגובת הורה)
-export async function updateTask(kidId, taskId, patchObj) {
-  const taskRef = doc(db, "kids", kidId, "tasks", taskId);
-  await updateDoc(taskRef, patchObj);
+export async function updateTask(kidId, taskId, patch) {
+  const ref = doc(db, "kids", kidId, "tasks", taskId);
+  await updateDoc(ref, patch);
 }
 
-// מחיקת משימה
 export async function deleteTaskDoc(kidId, taskId) {
-  const taskRef = doc(db, "kids", kidId, "tasks", taskId);
-  await deleteDoc(taskRef);
+  const ref = doc(db, "kids", kidId, "tasks", taskId);
+  await deleteDoc(ref);
 }
 
-// פונקציה מהירה לסימון/ביטול "בוצע"
 export async function toggleTaskDone(kidId, taskId, currentDone) {
   await updateTask(kidId, taskId, { done: !currentDone });
 }
 
-// פונקציה להוספת תגובת הורה
 export async function setParentNote(kidId, taskId, noteText) {
-  await updateTask(kidId, taskId, { parentNote: noteText || null });
+  await updateTask(kidId, taskId, { parentNote: noteText || "" });
 }
