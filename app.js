@@ -204,6 +204,10 @@ let syncStatusTimeout = null;
 let realtimeFailed    = false;
 let realtimeSuccessShown = false;
 
+let floatingNoticeWrapper = null;
+let floatingNoticeBubble  = null;
+let floatingNoticeTimer   = null;
+
 // --------------------------------------------------
 // עזרי UI
 // --------------------------------------------------
@@ -234,6 +238,56 @@ function escapeHtml(str = "") {
 
 function formatMessageText(str = "") {
   return escapeHtml(str).replace(/\n/g, "<br/>");
+}
+
+function ensureFloatingNoticeElements() {
+  if (!floatingNoticeWrapper) {
+    floatingNoticeWrapper = document.getElementById("floatingNoticeRoot");
+    if (!floatingNoticeWrapper) {
+      floatingNoticeWrapper = document.createElement("div");
+      floatingNoticeWrapper.id = "floatingNoticeRoot";
+      document.body.appendChild(floatingNoticeWrapper);
+    }
+    floatingNoticeWrapper.classList.add("floating-notice-wrapper");
+  }
+
+  if (!floatingNoticeBubble) {
+    floatingNoticeBubble = document.createElement("div");
+    floatingNoticeBubble.className = "floating-notice-bubble";
+    floatingNoticeWrapper.appendChild(floatingNoticeBubble);
+  }
+}
+
+function showFloatingNotice(type = "message", text = "") {
+  ensureFloatingNoticeElements();
+  if (!floatingNoticeWrapper || !floatingNoticeBubble) return;
+
+  const icon = type === "task" ? "🎯" : "💌";
+  const fallback = type === "task"
+    ? "נוספה משימה חדשה!"
+    : "יש הודעה חדשה!";
+  const safeText = escapeHtml(text || fallback);
+
+  floatingNoticeBubble.innerHTML = `<span class="floating-notice-icon" aria-hidden="true">${icon}</span><span class="floating-notice-text">${safeText}</span>`;
+
+  floatingNoticeBubble.classList.remove("notice-message", "notice-task");
+  floatingNoticeBubble.classList.add(type === "task" ? "notice-task" : "notice-message");
+
+  floatingNoticeWrapper.classList.add("is-visible");
+
+  floatingNoticeBubble.style.animation = "none";
+  void floatingNoticeBubble.offsetWidth;
+  floatingNoticeBubble.style.animation = "";
+
+  if (floatingNoticeTimer) {
+    clearTimeout(floatingNoticeTimer);
+  }
+
+  floatingNoticeTimer = setTimeout(() => {
+    if (floatingNoticeWrapper) {
+      floatingNoticeWrapper.classList.remove("is-visible");
+    }
+  }, 3000);
 }
 
 function sortTasksForDisplay(tasks = []) {
@@ -438,26 +492,11 @@ function refreshRealtimeListeners() {
 }
 
 function showKidNewMessageBubble(kidId) {
-  if (!kidMessagesArea || kidId !== currentKidId) return;
+  if (!kidMessagesArea) return;
+  if (kidId !== currentKidId) return;
+  if (activeView !== "kid") return;
 
-  const existing = kidMessagesArea.querySelector(".new-msg-bubble-child");
-  if (existing) {
-    existing.remove();
-  }
-
-  const bubble = document.createElement("div");
-  bubble.className = "new-msg-bubble-child";
-  bubble.textContent = "💌 יש הודעה חדשה מההורה!";
-  kidMessagesArea.appendChild(bubble);
-
-  setTimeout(() => {
-    bubble.classList.add("fade-out");
-    setTimeout(() => {
-      if (bubble.parentNode) {
-        bubble.parentNode.removeChild(bubble);
-      }
-    }, 400);
-  }, 3200);
+  showFloatingNotice("message", "יש הודעה חדשה מההורה!");
 }
 
 function maybeShowKidMessageBubble(kidId) {
@@ -660,6 +699,22 @@ async function renderParentView({ useCacheOnly = false } = {}) {
     const msgs     = messagesCache[kid.id] || [];
     const consumeHint = activeView === "parent" && unlockedParent;
     const showMsgHint = shouldShowParentMessageHint(kid.id, { consume: consumeHint });
+
+    if (showMsgHint && consumeHint) {
+      const kidName = kid.name ? `מ${kid.name}` : "מהילד/ה";
+      showFloatingNotice("message", `יש הודעה חדשה ${kidName}!`);
+    }
+
+    const parentPulseSet = parentTaskPulseMap.get(kid.id);
+    if (
+      parentPulseSet &&
+      parentPulseSet.size > 0 &&
+      activeView === "parent" &&
+      unlockedParent
+    ) {
+      const kidNameForTask = kid.name ? kid.name : "הילד/ה";
+      showFloatingNotice("task", `נוספה משימה חדשה ל${kidNameForTask}`);
+    }
 
     kidTasks.forEach(t => {
       totalTasks++;
@@ -949,6 +1004,16 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
   }
   const kidTasks = sortTasksForDisplay(tasksCache[kidId] || []);
   const msgs     = messagesCache[kidId] || [];
+
+  const pulseSetForKid = kidTaskPulseMap.get(kidId);
+  if (
+    pulseSetForKid &&
+    pulseSetForKid.size > 0 &&
+    kidId === currentKidId &&
+    activeView === "kid"
+  ) {
+    showFloatingNotice("task", "יש לך משימה חדשה!");
+  }
 
   if (kidHeaderName) kidHeaderName.textContent = `היי ${kid.name} ${kid.icon || ""}`;
   if (kidHeadlineEl) kidHeadlineEl.textContent = kid.childHeadline || "";
