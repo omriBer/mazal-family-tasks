@@ -212,18 +212,40 @@ let floatingNoticeTimer   = null;
 // עזרי UI
 // --------------------------------------------------
 function showView(which){
-  if(which === "parent"){
-    if (parentCard) parentCard.classList.add("active");
-    if (kidCard) kidCard.classList.remove("active");
-    if (parentTabBtn) parentTabBtn.classList.add("active");
-    if (kidTabBtn) kidTabBtn.classList.remove("active");
-    activeView = "parent";
-  } else {
-    if (kidCard) kidCard.classList.add("active");
-    if (parentCard) parentCard.classList.remove("active");
-    if (kidTabBtn) kidTabBtn.classList.add("active");
-    if (parentTabBtn) parentTabBtn.classList.remove("active");
-    activeView = "kid";
+  const targetView = which === "parent" ? "parent" : "kid";
+  activeView = targetView;
+
+  if (targetView === "parent") {
+    if (kidPrivateMode) {
+      return;
+    }
+
+    if (parentCard && parentCard.classList) {
+      parentCard.classList.add("active");
+    }
+    if (kidCard && kidCard.classList) {
+      kidCard.classList.remove("active");
+    }
+    if (parentTabBtn && parentTabBtn.classList) {
+      parentTabBtn.classList.add("active");
+    }
+    if (kidTabBtn && kidTabBtn.classList) {
+      kidTabBtn.classList.remove("active");
+    }
+    return;
+  }
+
+  if (kidCard && kidCard.classList) {
+    kidCard.classList.add("active");
+  }
+  if (!kidPrivateMode && parentCard && parentCard.classList) {
+    parentCard.classList.remove("active");
+  }
+  if (kidTabBtn && kidTabBtn.classList) {
+    kidTabBtn.classList.add("active");
+  }
+  if (!kidPrivateMode && parentTabBtn && parentTabBtn.classList) {
+    parentTabBtn.classList.remove("active");
   }
 }
 
@@ -1019,8 +1041,13 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
   if (kidHeadlineEl) kidHeadlineEl.textContent = kid.childHeadline || "";
   if (kidSublineEl) kidSublineEl.textContent  = kid.childSubline || "";
 
-  if (kidTabsArea && !kidPrivateMode) {
-    kidTabsArea.classList.remove("hidden");
+  if (kidTabsArea) {
+    if (kidPrivateMode) {
+      kidTabsArea.innerHTML = "";
+      kidTabsArea.classList.add("hidden");
+    } else {
+      kidTabsArea.classList.remove("hidden");
+    }
   }
 
   if (kidTasksArea) {
@@ -1395,11 +1422,11 @@ window.addKid = async function addKidHandler(){
   await ensureKidsLoaded();
 
   if (kidPrivateMode) {
-    if (kidsCache.length > 0) {
-      currentKidId = kidsCache[0].id;
+    const kid = kidsCache[0];
+    if (kid) {
+      currentKidId = kid.id;
       mountKidUi();
       showView("kid");
-      renderKidTabs();
       await ensureTasksLoaded(currentKidId);
       await ensureMessagesLoaded(currentKidId, { force: true });
       await renderKidView(currentKidId, { useCacheOnly: true });
