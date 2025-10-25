@@ -17,7 +17,7 @@ import {
 
 // הקונפיג מהפרויקט שלך ב-Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyDdEhEqRRQDKUmTJ73c3LLKxP8s4q5WIec",
+  apiKey: "AIzaSyBfGOSPtF33dgN6bPhpgUrXT-eEyf6e8rI",
   authDomain: "mazal-family.firebaseapp.com",
   projectId: "mazal-family",
   storageBucket: "mazal-family.firebasestorage.app",
