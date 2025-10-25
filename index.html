@@ -148,6 +148,35 @@
         <label for="taskChild">למי המשימה?</label>
         <select id="taskChild"></select>
 
+        <div class="task-scope-field">
+          <div class="modal-field-label">למי המשימה תרד?</div>
+          <label class="task-choice-option">
+            <input
+              type="radio"
+              name="taskScope"
+              id="taskScopeSingle"
+              value="single"
+              checked
+            />
+            <span class="task-choice-visual">
+              <span class="task-choice-title" id="taskScopeSingleText">רק לילד הזה</span>
+              <span class="task-choice-icon" id="taskScopeSingleIcon" aria-hidden="true">🙂</span>
+            </span>
+          </label>
+          <label class="task-choice-option">
+            <input
+              type="radio"
+              name="taskScope"
+              id="taskScopeAll"
+              value="all"
+            />
+            <span class="task-choice-visual">
+              <span class="task-choice-title">לכל הילדים</span>
+              <span class="task-choice-icon" aria-hidden="true">👨‍👧‍👦</span>
+            </span>
+          </label>
+        </div>
+
         <label for="taskTitle">שם המשימה</label>
         <input id="taskTitle" placeholder="לסדר את החדר 🧹" />
 
@@ -156,6 +185,48 @@
           id="taskMeta"
           placeholder="לפני ארוחת ערב, לבד בלי עזרה"
         ></textarea>
+
+        <div class="task-schedule-field">
+          <div class="modal-field-label">מתי המשימה תעלה?</div>
+          <label class="task-choice-option">
+            <input
+              type="radio"
+              name="taskSchedule"
+              id="taskScheduleNow"
+              value="now"
+              checked
+            />
+            <span class="task-choice-visual">
+              <span class="task-choice-title">מיידי</span>
+              <span class="task-choice-icon" aria-hidden="true">✨</span>
+            </span>
+          </label>
+          <label class="task-choice-option">
+            <input
+              type="radio"
+              name="taskSchedule"
+              id="taskScheduleTomorrow"
+              value="tomorrow"
+            />
+            <span class="task-choice-visual">
+              <span class="task-choice-title">מחר</span>
+              <span class="task-choice-icon" aria-hidden="true">🌤️</span>
+            </span>
+          </label>
+          <label class="task-choice-option">
+            <input
+              type="radio"
+              name="taskSchedule"
+              id="taskScheduleDayAfter"
+              value="dayAfterTomorrow"
+            />
+            <span class="task-choice-visual">
+              <span class="task-choice-title">מחרתיים</span>
+              <span class="task-choice-icon" aria-hidden="true">🌈</span>
+            </span>
+          </label>
+          <div class="task-schedule-hint">אם תבחר מחר – הילד יראה את זה רק מחר בבוקר 🌅</div>
+        </div>
 
         <button class="save-task-btn" onclick="saveNewTask()">שמור</button>
       </div>
