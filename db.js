@@ -24,19 +24,37 @@ const firebaseConfig = {
 
 // אתחול
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db  = getFirestore(app);
 
 // ----------------------------------------------------
 // kids collection
-//   kidDoc: { name, slug, icon, color, childHeadline, ... , order }
-//   subcollection tasks
-//     taskDoc: { title, meta, icon, done, childNote, parentNote }
+//   kidDoc: {
+//     name, slug, icon, color,
+//     childHeadline, childSubline,
+//     parentPraise, order
+//   }
+//
+// kids/{kidId}/tasks/{taskId}
+//   taskDoc: {
+//     title, meta, icon,
+//     done, childNote, parentNote
+//   }
+//
+// kids/{kidId}/messages/{messageId}
+//   messageDoc: {
+//     from: "child" | "parent",
+//     text: string,
+//     ts: number (Date.now()),
+//     replyToMessageId: string
+//   }
 // ----------------------------------------------------
+
 
 // שליפת כל הילדים
 export async function listKids() {
   const kidsCol = collection(db, "kids");
   const snap = await getDocs(kidsCol);
+
   let kids = [];
   snap.forEach(docSnap => {
     kids.push({
@@ -58,7 +76,7 @@ export async function listKids() {
 export async function addKid({ name, icon="💛", color="var(--yellow)" }) {
   const kidsCol = collection(db, "kids");
 
-  // slug נגזר מהשם באנגלית שתזין ידנית אחר כך אם תרצה קישור אישי. פה נשים אוטומטי זמני.
+  // slug אוטומטי בסיסי
   const slug = name
     .toLowerCase()
     .replace(/\s+/g, "_")
@@ -79,7 +97,9 @@ export async function addKid({ name, icon="💛", color="var(--yellow)" }) {
   return res.id;
 }
 
-// מחיקת ילד (הערה: Firestore לא מוחק אוטומטית את ה-tasks. זה מספיק לנו לשלב MVP.)
+// מחיקת ילד
+// שים לב: Firestore לא מוחק אוטומטית את תתי האוספים (tasks/messages)
+// ל-MVP זה כנראה מספיק.
 export async function deleteKid(kidId) {
   await deleteDoc(doc(db, "kids", kidId));
 }
@@ -132,7 +152,47 @@ export async function toggleTaskDone(kidId, taskId, wasDoneBefore) {
   await updateTask(kidId, taskId, { done: !wasDoneBefore });
 }
 
-// עדכון תגובת הורה
+// עדכון תגובת הורה למשימה ספציפית
 export async function setParentNote(kidId, taskId, noteText) {
   await updateTask(kidId, taskId, { parentNote: noteText || "" });
+}
+
+// ----------------------------------------------------
+// הודעות בין הילד להורה
+// ----------------------------------------------------
+
+// הוספת הודעה (ילד או הורה)
+export async function addMessage(kidId, text, from = "child") {
+  const messagesCol = collection(db, "kids", kidId, "messages");
+  const msg = {
+    from, // "child" או "parent"
+    text,
+    ts: Date.now(),
+    replyToMessageId: ""
+  };
+  const res = await addDoc(messagesCol, msg);
+  return res.id;
+}
+
+// שליפת כל ההודעות של ילד
+export async function listMessages(kidId) {
+  const messagesCol = collection(db, "kids", kidId, "messages");
+  const snap = await getDocs(messagesCol);
+
+  let msgs = [];
+  snap.forEach(docSnap => {
+    msgs.push({
+      id: docSnap.id,
+      ...docSnap.data()
+    });
+  });
+
+  // מיון מהישן לחדש
+  msgs.sort((a,b) => (a.ts||0) - (b.ts||0));
+  return msgs;
+}
+
+// שליחת הודעה בתור הורה
+export async function addParentReply(kidId, text) {
+  return addMessage(kidId, text, "parent");
 }
