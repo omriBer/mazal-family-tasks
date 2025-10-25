@@ -13,7 +13,9 @@ import {
   addMessage,
   listMessages,
   addParentReply,
-  deleteMessage
+  deleteMessage,
+  subscribeMessages,
+  subscribeTasks
 } from "./db.js";
 
 // אלמנטים עיקריים
@@ -38,6 +40,7 @@ const kidHeadlineEl   = document.getElementById("kidHeadline");
 const kidSublineEl    = document.getElementById("kidSubline");
 const kidTasksArea    = document.getElementById("kidTasksArea");
 const kidMessagesArea = document.getElementById("kidMessagesArea");
+const syncStatusContainer = document.getElementById("syncStatusContainer");
 
 const taskModalBg     = document.getElementById("taskModalBg");
 const taskChildSel    = document.getElementById("taskChild");
@@ -62,8 +65,22 @@ let kidsCache      = [];      // [{id, name, slug, ...}, ...]
 let tasksCache     = {};      // { kidId : [ {id,title,...}, ... ] }
 let messagesCache  = {};      // { kidId : [ {id,from,text,ts}, ... ] }
 let currentKidId   = null;
+let activeView     = "parent";
 
 let replyCtx       = { kidId:null, taskId:null, title:"" };
+
+const messageListeners = new Map();
+const taskListeners    = new Map();
+const kidMessageQueue  = new Set();
+const parentMessageQueue = new Set();
+const kidTaskPulseMap    = new Map();   // kidId -> Set(taskId)
+const parentTaskPulseMap = new Map();   // kidId -> Set(taskId)
+const initializedMessageRealtime = new Set();
+const initializedTaskRealtime    = new Set();
+
+let syncStatusTimeout = null;
+let realtimeFailed    = false;
+let realtimeSuccessShown = false;
 
 // --------------------------------------------------
 // עזרי UI
@@ -74,11 +91,13 @@ function showView(which){
     kidCard.classList.remove("active");
     parentTabBtn.classList.add("active");
     kidTabBtn.classList.remove("active");
+    activeView = "parent";
   } else {
     kidCard.classList.add("active");
     parentCard.classList.remove("active");
     kidTabBtn.classList.add("active");
     parentTabBtn.classList.remove("active");
+    activeView = "kid";
   }
 }
 
@@ -108,7 +127,13 @@ function buildChatHtml(messages = [], { allowDelete = false, kidId = "", emptyTe
     return `<div class="msg-empty">${escapeHtml(text)}</div>`;
   }
 
-  return messages.map(m => {
+  const sortedMessages = [...messages].sort((a, b) => {
+    const ats = typeof a.ts === "number" ? a.ts : 0;
+    const bts = typeof b.ts === "number" ? b.ts : 0;
+    return bts - ats;
+  });
+
+  return sortedMessages.map(m => {
     const directionClass = m.from === "parent" ? "parent" : "child";
     const textHtml       = formatMessageText(m.text || "");
     const deleteHtml = allowDelete && m.from === "parent"
@@ -124,6 +149,210 @@ function buildChatHtml(messages = [], { allowDelete = false, kidId = "", emptyTe
       </div>
     `;
   }).join("");
+}
+
+function showSyncStatus(message = "") {
+  if (!syncStatusContainer || !message) return;
+
+  syncStatusContainer.innerHTML = "";
+  const bubble = document.createElement("div");
+  bubble.className = "sync-status-bubble";
+  bubble.textContent = message;
+  syncStatusContainer.appendChild(bubble);
+
+  if (syncStatusTimeout) {
+    clearTimeout(syncStatusTimeout);
+  }
+
+  syncStatusTimeout = setTimeout(() => {
+    bubble.classList.add("fade-out");
+    setTimeout(() => {
+      if (bubble.parentNode) {
+        bubble.parentNode.removeChild(bubble);
+      }
+    }, 400);
+  }, 2800);
+}
+
+function addIdsToPulseMap(map, kidId, ids = []) {
+  if (!ids || ids.length === 0) return;
+  if (!map.has(kidId)) {
+    map.set(kidId, new Set());
+  }
+  const set = map.get(kidId);
+  ids.forEach(id => set.add(id));
+}
+
+function removeKidRealtime(kidId) {
+  const msgUnsub = messageListeners.get(kidId);
+  if (typeof msgUnsub === "function") {
+    try { msgUnsub(); } catch (err) { console.warn("failed to unsubscribe messages", err); }
+  }
+  messageListeners.delete(kidId);
+
+  const taskUnsub = taskListeners.get(kidId);
+  if (typeof taskUnsub === "function") {
+    try { taskUnsub(); } catch (err) { console.warn("failed to unsubscribe tasks", err); }
+  }
+  taskListeners.delete(kidId);
+
+  kidMessageQueue.delete(kidId);
+  parentMessageQueue.delete(kidId);
+  kidTaskPulseMap.delete(kidId);
+  parentTaskPulseMap.delete(kidId);
+  initializedMessageRealtime.delete(kidId);
+  initializedTaskRealtime.delete(kidId);
+}
+
+function handleRealtimeFailure(err) {
+  console.error("Realtime subscription error", err);
+  if (!realtimeFailed) {
+    realtimeFailed = true;
+    showSyncStatus("שליח הכוכבים בודק עדכונים 🌟");
+  }
+}
+
+function triggerRealtimeRender(kidId) {
+  if (activeView === "kid" && kidId === currentKidId) {
+    renderKidView(kidId, { useCacheOnly: true });
+  }
+  if (activeView === "parent" && unlockedParent) {
+    renderParentView({ useCacheOnly: true });
+  }
+}
+
+function ensureRealtimeForKid(kidId) {
+  if (!kidId) return;
+
+  if (!messageListeners.has(kidId)) {
+    try {
+      const unsubscribe = subscribeMessages(kidId, (messages, error) => {
+        if (error) {
+          handleRealtimeFailure(error);
+          return;
+        }
+        const wasInitialized = initializedMessageRealtime.has(kidId);
+        const prevMessages = messagesCache[kidId] || [];
+        const prevIds = new Set(prevMessages.map(m => m.id));
+
+        messagesCache[kidId] = messages;
+
+        if (wasInitialized) {
+          const newMessages = messages.filter(m => !prevIds.has(m.id));
+          if (newMessages.some(m => m.from === "parent")) {
+            kidMessageQueue.add(kidId);
+          }
+          if (newMessages.some(m => m.from === "child")) {
+            parentMessageQueue.add(kidId);
+          }
+        }
+
+        if (!realtimeSuccessShown && !realtimeFailed) {
+          realtimeSuccessShown = true;
+          showSyncStatus("הכול מעודכן ✨");
+        }
+
+        initializedMessageRealtime.add(kidId);
+
+        triggerRealtimeRender(kidId);
+      });
+      messageListeners.set(kidId, unsubscribe);
+    } catch (err) {
+      handleRealtimeFailure(err);
+    }
+  }
+
+  if (!taskListeners.has(kidId)) {
+    try {
+      const unsubscribe = subscribeTasks(kidId, (tasks, error) => {
+        if (error) {
+          handleRealtimeFailure(error);
+          return;
+        }
+        const wasInitialized = initializedTaskRealtime.has(kidId);
+        const prevTasks = tasksCache[kidId] || [];
+        const prevIds = new Set(prevTasks.map(t => t.id));
+
+        tasksCache[kidId] = tasks;
+
+        if (wasInitialized) {
+          const newTaskIds = tasks.filter(t => !prevIds.has(t.id)).map(t => t.id);
+          if (newTaskIds.length > 0) {
+            addIdsToPulseMap(kidTaskPulseMap, kidId, newTaskIds);
+            addIdsToPulseMap(parentTaskPulseMap, kidId, newTaskIds);
+            if (activeView === "parent" && unlockedParent) {
+              showSyncStatus("🎯 נוספה משימה חדשה לילד");
+            }
+          }
+        }
+
+        initializedTaskRealtime.add(kidId);
+
+        triggerRealtimeRender(kidId);
+      });
+      taskListeners.set(kidId, unsubscribe);
+    } catch (err) {
+      handleRealtimeFailure(err);
+    }
+  }
+}
+
+function refreshRealtimeListeners() {
+  const kidIds = new Set(kidsCache.map(k => k.id));
+
+  Array.from(messageListeners.keys()).forEach(kidId => {
+    if (!kidIds.has(kidId)) {
+      removeKidRealtime(kidId);
+    }
+  });
+
+  Array.from(taskListeners.keys()).forEach(kidId => {
+    if (!kidIds.has(kidId)) {
+      removeKidRealtime(kidId);
+    }
+  });
+
+  kidsCache.forEach(kid => ensureRealtimeForKid(kid.id));
+}
+
+function showKidNewMessageBubble(kidId) {
+  if (!kidMessagesArea || kidId !== currentKidId) return;
+
+  const existing = kidMessagesArea.querySelector(".new-msg-bubble-child");
+  if (existing) {
+    existing.remove();
+  }
+
+  const bubble = document.createElement("div");
+  bubble.className = "new-msg-bubble-child";
+  bubble.textContent = "💌 יש הודעה חדשה מההורה!";
+  kidMessagesArea.appendChild(bubble);
+
+  setTimeout(() => {
+    bubble.classList.add("fade-out");
+    setTimeout(() => {
+      if (bubble.parentNode) {
+        bubble.parentNode.removeChild(bubble);
+      }
+    }, 400);
+  }, 3200);
+}
+
+function maybeShowKidMessageBubble(kidId) {
+  if (!kidId) return;
+  if (kidMessageQueue.has(kidId)) {
+    kidMessageQueue.delete(kidId);
+    showKidNewMessageBubble(kidId);
+  }
+}
+
+function shouldShowParentMessageHint(kidId, { consume = true } = {}) {
+  if (!kidId) return false;
+  const hasHint = parentMessageQueue.has(kidId);
+  if (hasHint && consume) {
+    parentMessageQueue.delete(kidId);
+  }
+  return hasHint;
 }
 
 // --------------------------------------------------
@@ -206,30 +435,40 @@ window.showCard = async function showCard(which){
 // --------------------------------------------------
 // טעינת דאטה מהענן
 // --------------------------------------------------
-async function ensureKidsLoaded() {
-  if (kidsCache.length === 0) {
+async function ensureKidsLoaded({ force = false } = {}) {
+  if (kidsCache.length === 0 || force) {
     kidsCache = await listKids();
   }
+  refreshRealtimeListeners();
 }
 
 async function ensureTasksLoaded(kidId) {
   if (!tasksCache[kidId]) {
     tasksCache[kidId] = await listTasks(kidId);
   }
+  ensureRealtimeForKid(kidId);
 }
 
 async function ensureMessagesLoaded(kidId, { force = false } = {}) {
   if (!kidId) return;
   if (!messagesCache[kidId] || force) {
-    messagesCache[kidId] = await listMessages(kidId);
+    const msgs = await listMessages(kidId);
+    messagesCache[kidId] = Array.isArray(msgs)
+      ? [...msgs]
+      : [];
   }
+  ensureRealtimeForKid(kidId);
 }
 
 // --------------------------------------------------
 // רינדור איזור ההורה
 // --------------------------------------------------
-async function renderParentView() {
-  await ensureKidsLoaded();
+async function renderParentView({ useCacheOnly = false } = {}) {
+  if (!useCacheOnly) {
+    await ensureKidsLoaded();
+  } else if (kidsCache.length === 0) {
+    await ensureKidsLoaded();
+  }
 
   parentKidsArea.innerHTML = "";
 
@@ -237,11 +476,17 @@ async function renderParentView() {
   let doneTasks  = 0;
 
   for (const kid of kidsCache) {
-    await ensureTasksLoaded(kid.id);
-    await ensureMessagesLoaded(kid.id, { force: true });
+    if (!useCacheOnly || !tasksCache[kid.id]) {
+      await ensureTasksLoaded(kid.id);
+    }
+    if (!useCacheOnly || !messagesCache[kid.id]) {
+      await ensureMessagesLoaded(kid.id);
+    }
 
     const kidTasks = sortTasksForDisplay(tasksCache[kid.id] || []);
     const msgs     = messagesCache[kid.id] || [];
+    const consumeHint = activeView === "parent" && unlockedParent;
+    const showMsgHint = shouldShowParentMessageHint(kid.id, { consume: consumeHint });
 
     kidTasks.forEach(t => {
       totalTasks++;
@@ -257,6 +502,7 @@ async function renderParentView() {
     header.innerHTML = `
       <span class="kid-color-heart" style="color:${kid.color || 'inherit'}">${escapeHtml(kid.icon || "💛")}</span>
       <span>${escapeHtml(kid.name || "")}</span>
+      ${showMsgHint ? '<span class="new-msg-hint-parent" aria-hidden="true">💬</span>' : ''}
     `;
     kidBlock.appendChild(header);
 
@@ -264,6 +510,8 @@ async function renderParentView() {
     kidTasks.forEach(task => {
       const row = document.createElement("div");
       row.className = "task-row" + (task.done ? " task-done" : "");
+      row.dataset.kidId = kid.id;
+      row.dataset.taskId = task.id;
 
       const icon = task.icon ? escapeHtml(task.icon) : "⭐️";
       const metaHtml = task.meta ? `<div class="task-meta">${escapeHtml(task.meta || "")}</div>` : "";
@@ -304,6 +552,18 @@ async function renderParentView() {
       `;
 
       kidBlock.appendChild(row);
+
+      const pulseSet = parentTaskPulseMap.get(kid.id);
+      if (pulseSet && pulseSet.has(task.id)) {
+        row.classList.add("task-pulse");
+        setTimeout(() => {
+          row.classList.remove("task-pulse");
+        }, 1600);
+        pulseSet.delete(task.id);
+        if (pulseSet.size === 0) {
+          parentTaskPulseMap.delete(kid.id);
+        }
+      }
 
       // בועות משוב למשימה עצמה
       if (task.childNote || task.parentNote){
@@ -488,12 +748,16 @@ function renderKidTabs() {
   });
 }
 
-async function renderKidView(kidId) {
+async function renderKidView(kidId, { useCacheOnly = false } = {}) {
   const kid = kidsCache.find(k => k.id === kidId);
   if (!kid) return;
 
-  await ensureTasksLoaded(kidId);
-  await ensureMessagesLoaded(kidId, { force: true });
+  if (!useCacheOnly || !tasksCache[kidId]) {
+    await ensureTasksLoaded(kidId);
+  }
+  if (!useCacheOnly || !messagesCache[kidId]) {
+    await ensureMessagesLoaded(kidId);
+  }
   const kidTasks = sortTasksForDisplay(tasksCache[kidId] || []);
   const msgs     = messagesCache[kidId] || [];
 
@@ -511,6 +775,8 @@ async function renderKidView(kidId) {
     } else {
       wrap.classList.add("expanded");
     }
+    wrap.dataset.kidId = kidId;
+    wrap.dataset.taskId = task.id;
 
     const doneClass = task.done
       ? "child-task-done-btn done"
@@ -556,6 +822,18 @@ async function renderKidView(kidId) {
     }
 
     kidTasksArea.appendChild(wrap);
+
+    const pulseSet = kidTaskPulseMap.get(kidId);
+    if (pulseSet && pulseSet.has(task.id)) {
+      wrap.classList.add("child-task-pulse");
+      setTimeout(() => {
+        wrap.classList.remove("child-task-pulse");
+      }, 1600);
+      pulseSet.delete(task.id);
+      if (pulseSet.size === 0) {
+        kidTaskPulseMap.delete(kidId);
+      }
+    }
   });
 
   if (kidMessagesArea) {
@@ -567,6 +845,7 @@ async function renderKidView(kidId) {
         </div>
       </div>
     `;
+    maybeShowKidMessageBubble(kidId);
   }
 
   kidTasksArea
@@ -774,6 +1053,8 @@ function drawKidsList(){
       kidsCache = kidsCache.filter(x => x.id !== kidId);
       delete tasksCache[kidId];
       delete messagesCache[kidId];
+      removeKidRealtime(kidId);
+      refreshRealtimeListeners();
 
       if (currentKidId === kidId) {
         currentKidId = kidsCache[0]?.id || null;
@@ -811,6 +1092,7 @@ window.addKid = async function addKidHandler(){
   await addKid({ name, icon, color });
 
   kidsCache = await listKids();
+  refreshRealtimeListeners();
 
   newKidNameInp.value  = "";
   newKidIconInp.value  = "";
