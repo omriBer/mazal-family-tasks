@@ -9,7 +9,10 @@ import {
   addTask,
   deleteTaskDoc,
   toggleTaskDone,
-  setParentNote
+  setParentNote,
+  addMessage,
+  listMessages,
+  addParentReply
 } from "./db.js";
 
 // אלמנטים עיקריים
@@ -55,7 +58,9 @@ const PARENT_PASSWORD = "9999";
 let unlockedParent = false;
 let kidsCache      = [];      // [{id, name, slug, ...}, ...]
 let tasksCache     = {};      // { kidId : [ {id,title,...}, ... ] }
+let messagesCache  = {};      // { kidId : [ {id,from,text,ts}, ... ] }
 let currentKidId   = null;
+
 let replyCtx       = { kidId:null, taskId:null, title:"" };
 
 // --------------------------------------------------
@@ -87,7 +92,6 @@ window.openParentView = async function openParentView() {
   } else {
     parentLocked.style.display  = "none";
     parentContent.style.display = "block";
-    // נוסיף try/catch כדי שלא יתקע את הממשק אם יש באג זמני
     try {
       await renderParentView();
     } catch (err) {
@@ -116,14 +120,11 @@ window.tryUnlockParent = async function tryUnlockParent() {
 // מעבר בין כרטיס הורה/ילד
 // --------------------------------------------------
 window.showCard = async function showCard(which){
-  // נעדכן מבט
   showView(which);
 
   if (which === "kid") {
-    // וודא שיש לנו ילדים
     await ensureKidsLoaded();
 
-    // אם אין currentKidId עדיין – קח את הראשון ברשימה
     if (!currentKidId && kidsCache.length > 0) {
       currentKidId = kidsCache[0].id;
     }
@@ -165,6 +166,12 @@ async function ensureKidsLoaded() {
 async function ensureTasksLoaded(kidId) {
   if (!tasksCache[kidId]) {
     tasksCache[kidId] = await listTasks(kidId);
+  }
+}
+
+async function ensureMessagesLoaded(kidId) {
+  if (!messagesCache[kidId]) {
+    messagesCache[kidId] = await listMessages(kidId);
   }
 }
 
@@ -238,7 +245,7 @@ async function renderParentView() {
 
       kidBlock.appendChild(row);
 
-      // בועות משוב
+      // בועות משוב למשימה עצמה
       if (task.childNote || task.parentNote){
         const fb = document.createElement("div");
         fb.className = "feedback-bubble";
@@ -259,23 +266,61 @@ async function renderParentView() {
       }
     });
 
+    // --------------------------------------------------
+    // הודעות כלליות (צ'אט ילד-הורה)
+    // --------------------------------------------------
+    await ensureMessagesLoaded(kid.id);
+    const msgs = messagesCache[kid.id] || [];
+
+    const msgWrap = document.createElement("div");
+    msgWrap.className = "messages-block";
+    msgWrap.innerHTML = `
+      <div class="messages-title">הודעות עם ${kid.name} 💬</div>
+      <div class="messages-list">
+        ${
+          msgs.length === 0
+          ? "<div class='msg-empty'>אין עדיין הודעות</div>"
+          : msgs.map(m => `
+              <div class="msg-row ${m.from === "child" ? "from-child" : "from-parent"}">
+                <div class="msg-meta">
+                  ${m.from === "child" ? "ילד:" : "הורה:"}
+                </div>
+                <div class="msg-text">${m.text}</div>
+              </div>
+            `).join("")
+        }
+      </div>
+
+      <div class="msg-reply-area">
+        <textarea
+          class="msg-reply-input"
+          placeholder="רוצה לשלוח הודעה לילד? 💖"
+          data-kid="${kid.id}"
+        ></textarea>
+        <button
+          class="msg-reply-send-btn"
+          data-kid="${kid.id}"
+        >שליחת הודעת הורה ➜</button>
+      </div>
+    `;
+    kidBlock.appendChild(msgWrap);
+
     parentKidsArea.appendChild(kidBlock);
   }
 
-  // מאזינים לצ'קבוקסים
+  // מאזינים לצ'קבוקסים של המשימות
   parentKidsArea
     .querySelectorAll("input[type=checkbox]")
     .forEach(cb => {
       cb.addEventListener("change", async e => {
         const kidId  = e.target.getAttribute("data-kid");
         const taskId = e.target.getAttribute("data-task");
-        // האם היה done לפני השינוי?
         const kidTasksList = tasksCache[kidId] || [];
         const t = kidTasksList.find(x => x.id === taskId);
         const wasDone = t ? t.done : false;
 
         await toggleTaskDone(kidId, taskId, wasDone);
-        tasksCache[kidId] = await listTasks(kidId); // רענון במטמון
+        tasksCache[kidId] = await listTasks(kidId);
         await renderParentView();
         if (kidId === currentKidId) {
           await renderKidView(kidId);
@@ -283,7 +328,7 @@ async function renderParentView() {
       });
     });
 
-  // מאזינים לכפתורי תגובה / מחיקה
+  // מאזינים לכפתורי תגובה / מחיקה של משימות
   parentKidsArea
     .querySelectorAll("button.task-small-btn")
     .forEach(btn => {
@@ -310,7 +355,41 @@ async function renderParentView() {
       });
     });
 
-  // עדכון % התקדמות
+  // מאזינים לשליחת הודעה חדשה מההורה לילד
+  parentKidsArea
+    .querySelectorAll(".msg-reply-send-btn")
+    .forEach(btn => {
+      btn.addEventListener("click", async e => {
+        const kidId = btn.getAttribute("data-kid");
+        const ta = parentKidsArea.querySelector(
+          `.msg-reply-input[data-kid="${kidId}"]`
+        );
+        if (!ta) return;
+        const txt = ta.value.trim();
+        if (!txt) {
+          alert("כתוב הודעה קודם 🙂");
+          return;
+        }
+
+        // שמירת הודעה כ"הורה"
+        await addParentReply(kidId, txt);
+
+        ta.value = "";
+
+        // רענון הודעות וקאש
+        messagesCache[kidId] = await listMessages(kidId);
+
+        // רנדר מחדש
+        await renderParentView();
+
+        // במידה והילד הזה כרגע מוצג במסך הילד:
+        if (kidId === currentKidId) {
+          await renderKidView(kidId);
+        }
+      });
+    });
+
+  // עדכון אחוזי התקדמות
   const percent = totalTasks === 0
     ? 0
     : Math.round((doneTasks / totalTasks) * 100);
@@ -373,7 +452,7 @@ async function renderKidView(kidId) {
       <div class="child-task-meta">${task.meta || ""}</div>
     `;
 
-    // פידבק כללי מההורה לילד (parentPraise) מוצג מתחת למשימה הראשונה
+    // פידבק כללי מההורה (parentPraise) מתחת למשימה הראשונה
     if (task === kidTasks[0] && kid.parentPraise) {
       const praise = document.createElement("div");
       praise.className = "parent-feedback-box";
@@ -395,7 +474,6 @@ async function renderKidView(kidId) {
         const kId  = btn.getAttribute("data-kid");
         const tId  = btn.getAttribute("data-task");
 
-        // מה היה המצב לפני?
         const listRef = tasksCache[kId] || [];
         const item    = listRef.find(x => x.id === tId);
         const wasDone = item ? item.done : false;
@@ -412,6 +490,33 @@ async function renderKidView(kidId) {
       });
     });
 }
+
+// --------------------------------------------------
+// שליחת הודעה מהילד להורה
+// --------------------------------------------------
+window.sendKidMessage = async function sendKidMessage() {
+  if (!currentKidId) {
+    alert("אין ילד נוכחי 🤔");
+    return;
+  }
+  const ta = document.getElementById("kidNote");
+  const txt = ta.value.trim();
+  if (!txt) {
+    alert("כתוב משהו קודם ❤️");
+    return;
+  }
+
+  // שמירה בענן בתור "ילד"
+  await addMessage(currentKidId, txt, "child");
+
+  // ניקוי השדה
+  ta.value = "";
+
+  // רענון קאש ההודעות של הילד הזה
+  messagesCache[currentKidId] = await listMessages(currentKidId);
+
+  alert("נשלח להורה ✨");
+};
 
 // --------------------------------------------------
 // מודאל משימה חדשה
@@ -462,7 +567,7 @@ window.closeModal = function closeModal(id){
 };
 
 // --------------------------------------------------
-// מודאל תגובת הורה
+// מודאל תגובת הורה למשימה
 // --------------------------------------------------
 function openReplyModal() {
   replyTaskName.textContent = replyCtx.title;
@@ -476,8 +581,8 @@ window.saveReply = async function saveReply() {
 
   replyModalBg.style.display = "none";
 
-  // רענון
   tasksCache[replyCtx.kidId] = await listTasks(replyCtx.kidId);
+
   if (unlockedParent) {
     await renderParentView();
   }
@@ -533,17 +638,18 @@ function drawKidsList() {
     });
   });
 
-  // כפתור הסרת ילד
+  // מחיקת ילד
   kidsList.querySelectorAll(".kid-remove-btn").forEach(btn => {
     btn.addEventListener("click", async e => {
       const kidId = btn.getAttribute("data-kid");
       await deleteKid(kidId);
 
-      // עדכן קאש
+      // עדכון קאש
       kidsCache = kidsCache.filter(x => x.id !== kidId);
       delete tasksCache[kidId];
+      delete messagesCache[kidId];
 
-      // אם מחקתי את מי שמוצג עכשיו בילד -> לעבור לאחר
+      // אם מחקנו את הילד שמוצג כרגע
       if (currentKidId === kidId) {
         currentKidId = kidsCache[0]?.id || null;
       }
@@ -557,7 +663,7 @@ function drawKidsList() {
       if (currentKidId) {
         await renderKidView(currentKidId);
       } else {
-        kidTasksArea.innerHTML = "";
+        kidTasksArea.innerHTML   = "";
         kidHeadlineEl.textContent = "";
         kidSublineEl.textContent  = "";
         kidHeaderName.textContent = "אין ילדים כרגע 🙃";
@@ -576,13 +682,10 @@ window.addKid = async function addKidHandler(){
     return;
   }
 
-  // הוספה בענן
   const newKidId = await addKid({ name, icon, color });
 
-  // עדכון קאש מקומי: נטען מחדש את כל הילדים (פשוט ובטוח)
   kidsCache = await listKids();
 
-  // נקה טופס
   newKidNameInp.value  = "";
   newKidIconInp.value  = "";
   newKidColorInp.value = "";
@@ -590,7 +693,6 @@ window.addKid = async function addKidHandler(){
   drawKidsList();
   renderKidTabs();
 
-  // אם אין currentKidId עדיין, קח את זה שיצרנו עכשיו
   if (!currentKidId && kidsCache.length > 0) {
     currentKidId = kidsCache[kidsCache.length - 1].id;
     await renderKidView(currentKidId);
@@ -601,15 +703,14 @@ window.addKid = async function addKidHandler(){
 // INIT – מה קורה כשהעמוד נטען
 // --------------------------------------------------
 (async function init(){
-  // טען את רשימת הילדים מהענן
   await ensureKidsLoaded();
 
-  // בדוק אם הגיעו עם קישור אישי ?kid=slug
+  // בדיקת ?kid=slug
   const params  = new URLSearchParams(window.location.search);
   const kidSlug = params.get("kid");
 
   if (kidSlug) {
-    // הסתר לגמרי את אזור ההורה במצב ילד
+    // הסתרת בקרת הורה לגמרי במצב קישור אישי
     const viewToggle = document.querySelector(".view-toggle");
     if (viewToggle) viewToggle.style.display = "none";
 
@@ -617,32 +718,37 @@ window.addKid = async function addKidHandler(){
     parentLocked.style.display    = "none";
     parentContent.style.display   = "none";
 
-    // מצא את הילד לפי slug או לפי ה-id של הדוקומנט
+    // מציאת הילד לפי slug או לפי id
     const kid = kidsCache.find(k =>
       k.slug === kidSlug || k.id === kidSlug
     );
 
     if (kid) {
       currentKidId = kid.id;
-      // הפוך את כרטיס הילד לפעיל
       showView("kid");
+
       renderKidTabs();
       await renderKidView(currentKidId);
+
+      // נטען גם הודעות כדי שאם נוסיף בעתיד להצגת צ'אט לילד זה כבר בקאש
+      await ensureMessagesLoaded(currentKidId);
+
       return;
     } else {
       alert("לא נמצא ילד בשם הזה 🤔");
     }
   }
 
-  // ברירת מחדל: הורה (נעול)
+  // ברירת מחדל: כרטיס הורה (נעול)
   showView("parent");
   parentLocked.style.display  = "block";
   parentContent.style.display = "none";
 
-  // נכין גם את מסך הילד לברירת מחדל
+  // נכין גם את מסך הילד כברירת מחדל
   if (kidsCache.length > 0) {
     currentKidId = kidsCache[0].id;
     renderKidTabs();
     await renderKidView(currentKidId);
+    await ensureMessagesLoaded(currentKidId);
   }
 })();
