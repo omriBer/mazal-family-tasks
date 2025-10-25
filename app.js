@@ -580,27 +580,8 @@ window.addKid = async function addKidHandler(){
   const kidSlug = params.get("kid");
 
 if (kidSlug) {
-  // החבא את כל ממשק ההורה לגמרי
+  // החבא את הסוויץ' בין הורה/ילד
   document.querySelector(".view-toggle").style.display = "none";
-  document.getElementById("parentCard").style.display = "none";
-  document.getElementById("parentLocked").style.display = "none";
-  document.getElementById("parentContent").style.display = "none";
-
-  // הצג רק את מסך הילד
-  const kid = kidsCache.find(k =>
-    k.slug === kidSlug || k.id === kidSlug
-  );
-
-  if (kid) {
-    currentKidId = kid.id;
-    showView("kid");
-    renderKidTabs();
-    await renderKidView(currentKidId);
-    return;
-  } else {
-    alert("לא נמצא ילד בשם הזה 🤔");
-  }
-}
 
 
     // נסה לזהות את הילד לפי slug או לפי ה-id של הדוקומנט
