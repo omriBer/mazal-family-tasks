@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>מז"ל – משימות למשפחה</title>
 
-  <!-- קובץ ה-CSS החיצוני שלך -->
+  <!-- CSS ראשי -->
   <link rel="stylesheet" href="style.css" />
 
-  <!-- טיפ קטן: תאור לאייקון למסך בית של הילדים -->
+  <!-- מאפשר להתקין כמו אפליקציה במסך הבית -->
   <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;מז״ל&quot;,&quot;short_name&quot;:&quot;מז״ל&quot;,&quot;display&quot;:&quot;standalone&quot;}" />
-  <meta name="theme-color" content="#ffd44d" />
+  <meta name="theme-color" content="#ffe775" />
 </head>
 <body>
 
@@ -22,15 +22,13 @@
       <button class="toggle-btn" id="kidTab" onclick="showCard('kid')">ילד 👧</button>
     </div>
 
-    <!-- ==========
-         כרטיס הורה
-         ========== -->
+    <!-- כרטיס הורה -->
     <section class="card active" id="parentCard" aria-labelledby="parentTab">
-      
+
       <!-- מצב נעול (לפני סיסמה) -->
       <div id="parentLocked" class="locked-card">
         <div style="font-size:20px;font-weight:600;color:var(--text-dark);margin-bottom:8px;">
-          🔒 איזור הורה נעול
+          🔒 אזור הורה נעול
         </div>
         <div>הכנס קוד בן 4 ספרות</div>
 
@@ -48,7 +46,7 @@
           <div class="brand-text">
             <div class="title">מז״ל</div>
             <div class="subtitle">
-              שלום עומרי 👋<br />
+              שלום הורה 👋<br />
               הנה המשימות של הילדים להיום
             </div>
           </div>
@@ -62,26 +60,19 @@
           </div>
         </div>
 
-        <!-- כפתור הוספת משימה -->
         <button class="main-btn" id="openAddTask" onclick="openAddTaskModal()">
-          <span class="plus">+</span>
-          הוספת משימה חדשה
+          ➕ הוספת משימה חדשה
         </button>
 
-        <!-- כפתור ניהול ילדים -->
         <button class="sub-btn" id="openManageKids" onclick="openManageKidsModal()">
           ניהול ילדים 👨‍👧➕
         </button>
 
-        <!-- כאן יהיה רינדור דינמי של כל הילדים והמשימות שלהם -->
         <div id="parentKidsArea"></div>
-
       </div>
     </section>
 
-    <!-- ==========
-         כרטיס ילד
-         ========== -->
+    <!-- כרטיס ילד -->
     <section class="card" id="kidCard" aria-labelledby="kidTab">
 
       <header class="brand-header">
@@ -95,38 +86,34 @@
         </div>
       </header>
 
-      <!-- טאבים של הילדים -->
+      <!-- טאבים בין הילדים -->
       <div class="kid-tabs" id="kidTabsArea"></div>
 
-      <!-- טקסט מוטיבציה אישי -->
+      <!-- טקסט חיזוק אישי -->
       <div class="kid-top-line" id="kidHeadline">...</div>
       <div class="kid-sub-line" id="kidSubline">...</div>
 
-      <!-- כאן ירנדרו המשימות של הילד הנוכחי -->
+      <!-- משימות של הילד -->
       <div id="kidTasksArea"></div>
 
-      <!-- הודעה להורה 
+      <!-- הודעה להורה (כרגע UI בלבד) -->
       <div class="send-feedback-area">
-        <label for="kidNote">תרצה לשלוח הודעה להורה?</label>
+        <label for="kidNote">רוצה לשלוח הודעה להורה?</label>
         <textarea
           id="kidNote"
-          placeholder="היה לי קצת קשה לקפל את החולצות 👕😅"
+          placeholder="היה לי קשה עם הקיפול 👕"
         ></textarea>
-        <button class="send-btn">שליחה להורה ➜</button>
-      </div> -->
+        <button class="send-btn" onclick="alert('בקרוב זה יישמר ❤️')">שליחה להורה ➜</button>
+      </div>
+    </section>
 
-    </section> 
-
-    <!-- כיתוב תחתון -->
     <div class="footer-note">
       מז״ל – משימות, זמן ולב ❤<br />
-      גרסת הדגמה בענן
+      גרסה משפחתית בענן
     </div>
   </div>
 
-  <!-- =========================================================
-       מודאל: הוספת משימה חדשה להורה
-       ========================================================= -->
+  <!-- מודאל הוספת משימה -->
   <div class="modal-backdrop" id="taskModalBg">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <button class="close-modal-btn" onclick="closeModal('taskModalBg')" aria-label="סגור">✕</button>
@@ -149,9 +136,7 @@
     </div>
   </div>
 
-  <!-- =========================================================
-       מודאל: הוספת תגובה הורה למשימה
-       ========================================================= -->
+  <!-- מודאל תגובת הורה למשימה -->
   <div class="modal-backdrop" id="replyModalBg">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="replyTitle">
       <button class="close-modal-btn" onclick="closeModal('replyModalBg')" aria-label="סגור">✕</button>
@@ -162,9 +147,7 @@
         id="replyTaskName"
         style="font-size:14px;color:var(--text-mid);margin-bottom:8px;"
       ></div>
-    <!-- ==========
-         כרטיס ילד
-     
+
       <label for="replyText">הודעת הורה</label>
       <textarea
         id="replyText"
@@ -173,18 +156,15 @@
 
       <button class="save-reply-btn" onclick="saveReply()">שמור תגובה</button>
     </div>
-  </div> 
-    ========== -->
-  <!-- =========================================================
-       מודאל: ניהול ילדים (להוסיף/להסיר)
-       ========================================================= -->
+  </div>
+
+  <!-- מודאל ניהול ילדים -->
   <div class="modal-backdrop" id="manageKidsBg">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manageKidsTitle">
       <button class="close-modal-btn" onclick="closeModal('manageKidsBg')" aria-label="סגור">✕</button>
 
       <h2 id="manageKidsTitle">ניהול ילדים</h2>
 
-      <!-- כאן נרנדר דינמית את רשימת הילדים -->
       <div id="kidsList"></div>
 
       <label for="newKidName">שם ילד חדש</label>
@@ -193,18 +173,14 @@
       <label for="newKidIcon">אייקון/לב לילד</label>
       <input id="newKidIcon" placeholder="💛" />
 
-      <label for="newKidColor">צבע CSS (אפשר להשאיר ריק)</label>
+      <label for="newKidColor">צבע CSS (אפשר 'Pink' / '#a8e1ff')</label>
       <input id="newKidColor" placeholder="var(--yellow)" />
 
       <button class="manage-kids-btn" onclick="addKid()">הוסף ילד</button>
     </div>
   </div>
 
-  <!-- =========================================================
-       סקריפט ראשי:
-       app.js טוען ומנהל UI
-       והוא בעצמו מייבא את db.js
-       ========================================================= -->
+  <!-- קוד הלוגיקה (app.js) שטוען גם את db.js -->
   <script type="module" src="app.js"></script>
 </body>
 </html>
