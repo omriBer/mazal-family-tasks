@@ -87,7 +87,12 @@ window.openParentView = async function openParentView() {
   } else {
     parentLocked.style.display  = "none";
     parentContent.style.display = "block";
-    await renderParentView();
+    // נוסיף try/catch כדי שלא יתקע את הממשק אם יש באג זמני
+    try {
+      await renderParentView();
+    } catch (err) {
+      console.error("renderParentView error:", err);
+    }
   }
 };
 
@@ -97,7 +102,11 @@ window.tryUnlockParent = async function tryUnlockParent() {
     lockWarn.textContent = "";
     parentLocked.style.display  = "none";
     parentContent.style.display = "block";
-    await renderParentView();
+    try {
+      await renderParentView();
+    } catch (err) {
+      console.error("renderParentView error:", err);
+    }
   } else {
     lockWarn.textContent = "סיסמה לא נכונה";
   }
@@ -107,9 +116,11 @@ window.tryUnlockParent = async function tryUnlockParent() {
 // מעבר בין כרטיס הורה/ילד
 // --------------------------------------------------
 window.showCard = async function showCard(which){
+  // נעדכן מבט
   showView(which);
 
   if (which === "kid") {
+    // וודא שיש לנו ילדים
     await ensureKidsLoaded();
 
     // אם אין currentKidId עדיין – קח את הראשון ברשימה
@@ -118,8 +129,26 @@ window.showCard = async function showCard(which){
     }
 
     renderKidTabs();
+
     if (currentKidId) {
       await renderKidView(currentKidId);
+    } else {
+      kidTasksArea.innerHTML = "אין ילדים עדיין 🤔";
+    }
+  }
+
+  if (which === "parent") {
+    if (!unlockedParent) {
+      parentLocked.style.display  = "block";
+      parentContent.style.display = "none";
+    } else {
+      parentLocked.style.display  = "none";
+      parentContent.style.display = "block";
+      try {
+        await renderParentView();
+      } catch (err) {
+        console.error("renderParentView error:", err);
+      }
     }
   }
 };
@@ -579,18 +608,23 @@ window.addKid = async function addKidHandler(){
   const params  = new URLSearchParams(window.location.search);
   const kidSlug = params.get("kid");
 
-if (kidSlug) {
-  // החבא את הסוויץ' בין הורה/ילד
-  document.querySelector(".view-toggle").style.display = "none";
+  if (kidSlug) {
+    // הסתר לגמרי את אזור ההורה במצב ילד
+    const viewToggle = document.querySelector(".view-toggle");
+    if (viewToggle) viewToggle.style.display = "none";
 
+    parentCard.style.display      = "none";
+    parentLocked.style.display    = "none";
+    parentContent.style.display   = "none";
 
-    // נסה לזהות את הילד לפי slug או לפי ה-id של הדוקומנט
+    // מצא את הילד לפי slug או לפי ה-id של הדוקומנט
     const kid = kidsCache.find(k =>
       k.slug === kidSlug || k.id === kidSlug
     );
 
     if (kid) {
       currentKidId = kid.id;
+      // הפוך את כרטיס הילד לפעיל
       showView("kid");
       renderKidTabs();
       await renderKidView(currentKidId);
