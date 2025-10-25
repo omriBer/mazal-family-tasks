@@ -12,7 +12,8 @@ import {
   setParentNote,
   addMessage,
   listMessages,
-  addParentReply
+  addParentReply,
+  deleteMessage
 } from "./db.js";
 
 // אלמנטים עיקריים
@@ -92,6 +93,37 @@ function escapeHtml(str = "") {
 
 function formatMessageText(str = "") {
   return escapeHtml(str).replace(/\n/g, "<br/>");
+}
+
+function sortTasksForDisplay(tasks = []) {
+  return [...tasks].sort((a, b) => {
+    if (!!a.done === !!b.done) return 0;
+    return a.done ? 1 : -1;
+  });
+}
+
+function buildChatHtml(messages = [], { allowDelete = false, kidId = "", emptyText = "" } = {}) {
+  if (!messages || messages.length === 0) {
+    const text = emptyText || "אין הודעות";
+    return `<div class="msg-empty">${escapeHtml(text)}</div>`;
+  }
+
+  return messages.map(m => {
+    const directionClass = m.from === "parent" ? "parent" : "child";
+    const textHtml       = formatMessageText(m.text || "");
+    const deleteHtml = allowDelete && m.from === "parent"
+      ? `<button class="chat-delete" data-kid="${kidId}" data-message="${m.id}" title="מחיקת הודעת הורה">🗑️</button>`
+      : "";
+
+    return `
+      <div class="chat-row ${directionClass}">
+        <div class="chat-bubble">
+          <div class="chat-text">${textHtml}</div>
+          ${deleteHtml}
+        </div>
+      </div>
+    `;
+  }).join("");
 }
 
 // --------------------------------------------------
@@ -207,7 +239,8 @@ async function renderParentView() {
   for (const kid of kidsCache) {
     await ensureTasksLoaded(kid.id);
     await ensureMessagesLoaded(kid.id, { force: true });
-    const kidTasks = tasksCache[kid.id] || [];
+
+    const kidTasks = sortTasksForDisplay(tasksCache[kid.id] || []);
     const msgs     = messagesCache[kid.id] || [];
 
     kidTasks.forEach(t => {
@@ -222,7 +255,7 @@ async function renderParentView() {
     const header = document.createElement("div");
     header.className = "kid-header";
     header.innerHTML = `
-      <span class="kid-color-heart" style="color:${kid.color || 'inherit'}">${kid.icon || "💛"}</span>
+      <span class="kid-color-heart" style="color:${kid.color || 'inherit'}">${escapeHtml(kid.icon || "💛")}</span>
       <span>${escapeHtml(kid.name || "")}</span>
     `;
     kidBlock.appendChild(header);
@@ -230,20 +263,27 @@ async function renderParentView() {
     // משימות
     kidTasks.forEach(task => {
       const row = document.createElement("div");
-      row.className = "task-row";
+      row.className = "task-row" + (task.done ? " task-done" : "");
+
+      const icon = task.icon ? escapeHtml(task.icon) : "⭐️";
+      const metaHtml = task.meta ? `<div class="task-meta">${escapeHtml(task.meta || "")}</div>` : "";
 
       row.innerHTML = `
         <div class="task-main">
-          <div class="task-title">${escapeHtml(task.title || "")} ${task.icon || ""}</div>
-          <div class="task-meta">${escapeHtml(task.meta || "")}</div>
+          <div class="task-title">
+            <span class="task-icon">${icon}</span>
+            <span class="task-title-text">${escapeHtml(task.title || "")}</span>
+          </div>
+          ${metaHtml}
         </div>
 
         <div class="task-check">
           <input
             type="checkbox"
-            ${task.done ? "checked":""}
+            ${task.done ? "checked" : ""}
             data-kid="${kid.id}"
             data-task="${task.id}"
+            aria-label="${task.done ? "בטל סימון משימה" : "סמן משימה כהושלמה"}"
           />
 
           <button class="task-small-btn blue"
@@ -286,30 +326,14 @@ async function renderParentView() {
       }
     });
 
-    // --------------------------------------------------
     // הודעות כלליות (צ'אט ילד-הורה)
-    // --------------------------------------------------
     const messageTitle = escapeHtml(kid.name || "");
-    const messagesHtml = msgs.length === 0
-      ? "<div class='msg-empty'>אין עדיין הודעות</div>"
-      : msgs.map(m => {
-          const bubbleClass = m.from === "child" ? "from-child" : "from-parent";
-          const senderLabel = m.from === "child" ? "ילד:" : "הורה:";
-          const textHtml    = formatMessageText(m.text || "");
-          return `
-            <div class="msg-row ${bubbleClass}">
-              <div class="msg-meta">${senderLabel}</div>
-              <div class="msg-text">${textHtml}</div>
-            </div>
-          `;
-        }).join("");
-
     const msgWrap = document.createElement("div");
     msgWrap.className = "messages-block";
     msgWrap.innerHTML = `
-      <div class="messages-title">הודעות עם ${messageTitle} 💬</div>
-      <div class="messages-list">
-        ${messagesHtml}
+      <div class="messages-title">שיחות עם ${messageTitle} 💬</div>
+      <div class="messages-list chat-thread">
+        ${buildChatHtml(msgs, { allowDelete: true, kidId: kid.id, emptyText: "אין עדיין הודעות" })}
       </div>
 
       <div class="msg-reply-area">
@@ -372,6 +396,29 @@ async function renderParentView() {
           replyCtx.taskId   = taskId;
           replyCtx.title    = btn.getAttribute("data-title") || "";
           openReplyModal();
+        }
+      });
+    });
+
+  // מחיקת הודעות הורה
+  parentKidsArea
+    .querySelectorAll(".chat-delete")
+    .forEach(btn => {
+      btn.addEventListener("click", async e => {
+        const kidId = btn.getAttribute("data-kid");
+        const msgId = btn.getAttribute("data-message");
+        if (!kidId || !msgId) return;
+        btn.disabled = true;
+        try {
+          await deleteMessage(kidId, msgId);
+          await ensureMessagesLoaded(kidId, { force: true });
+          await renderParentView();
+          if (kidId === currentKidId) {
+            await renderKidView(kidId);
+          }
+        } catch (err) {
+          console.error("deleteMessage error", err);
+          alert("לא הצלחנו למחוק את ההודעה 😔");
         }
       });
     });
@@ -447,7 +494,7 @@ async function renderKidView(kidId) {
 
   await ensureTasksLoaded(kidId);
   await ensureMessagesLoaded(kidId, { force: true });
-  const kidTasks = tasksCache[kidId] || [];
+  const kidTasks = sortTasksForDisplay(tasksCache[kidId] || []);
   const msgs     = messagesCache[kidId] || [];
 
   kidHeaderName.textContent = `היי ${kid.name} ${kid.icon || ""}`;
@@ -459,58 +506,64 @@ async function renderKidView(kidId) {
   kidTasks.forEach(task => {
     const wrap = document.createElement("div");
     wrap.className = "child-task-row";
+    if (task.done) {
+      wrap.classList.add("task-done", "collapsed");
+    } else {
+      wrap.classList.add("expanded");
+    }
 
     const doneClass = task.done
       ? "child-task-done-btn done"
       : "child-task-done-btn";
 
-    wrap.innerHTML = `
-      <div class="child-task-head">
-        <div class="child-task-title">${escapeHtml(task.title || "")} ${task.icon || ""}</div>
-        <button
-          class="${doneClass}"
-          data-kid="${kidId}"
-          data-task="${task.id}"
-        >
-          ${task.done ? "✔ בוצע" : "סיימתי"}
-        </button>
-      </div>
-      <div class="child-task-meta">${escapeHtml(task.meta || "")}</div>
-    `;
+    const icon = task.icon ? escapeHtml(task.icon) : "⭐️";
 
-    if (task === kidTasks[0] && kid.parentPraise) {
-      const praise = document.createElement("div");
-      praise.className = "parent-feedback-box";
-      praise.innerHTML = `
-        <span class="parent-feedback-label">מה ההורה חושב עליך 😍</span>
-        ${escapeHtml(kid.parentPraise || "")}
-      `;
-      wrap.appendChild(praise);
+    const head = document.createElement("div");
+    head.className = "child-task-head";
+    head.innerHTML = `
+      <div class="child-task-title">
+        <span class="task-icon">${icon}</span>
+        <span class="task-title-text">${escapeHtml(task.title || "")}</span>
+      </div>
+      <button
+        class="${doneClass}"
+        data-kid="${kidId}"
+        data-task="${task.id}"
+        aria-label="${task.done ? "בטל סימון משימה" : "סיימתי את המשימה"}"
+      >
+        ${task.done ? "✔️" : "סיימתי"}
+      </button>
+    `;
+    wrap.appendChild(head);
+
+    const details = document.createElement("div");
+    details.className = "child-task-details";
+
+    let detailsHtml = "";
+    if (task.meta) {
+      detailsHtml += `<div class="child-task-meta">${escapeHtml(task.meta || "")}</div>`;
+    }
+    if (task.childNote) {
+      detailsHtml += `<div class="task-note child-note"><span>מה כתבתי:</span>${escapeHtml(task.childNote || "")}</div>`;
+    }
+    if (task.parentNote) {
+      detailsHtml += `<div class="task-note parent-note"><span>תגובה מההורה:</span>${escapeHtml(task.parentNote || "")}</div>`;
+    }
+
+    if (detailsHtml) {
+      details.innerHTML = detailsHtml;
+      wrap.appendChild(details);
     }
 
     kidTasksArea.appendChild(wrap);
   });
 
   if (kidMessagesArea) {
-    const messagesHtml = msgs.length === 0
-      ? "<div class='msg-empty'>עוד אין הודעות משותפות</div>"
-      : msgs.map(m => {
-          const bubbleClass = m.from === "child" ? "from-child" : "from-parent";
-          const senderLabel = m.from === "child" ? "אני:" : "הורה:";
-          const textHtml    = formatMessageText(m.text || "");
-          return `
-            <div class="msg-row ${bubbleClass}">
-              <div class="msg-meta">${senderLabel}</div>
-              <div class="msg-text">${textHtml}</div>
-            </div>
-          `;
-        }).join("");
-
     kidMessagesArea.innerHTML = `
       <div class="kid-messages-block">
-        <div class="kid-messages-title">הודעות עם ההורה 💬</div>
-        <div class="kid-messages-list">
-          ${messagesHtml}
+        <div class="kid-messages-title">שיחות עם ההורה 💬</div>
+        <div class="kid-messages-list chat-thread">
+          ${buildChatHtml(msgs, { emptyText: "עוד אין הודעות משותפות" })}
         </div>
       </div>
     `;
@@ -520,6 +573,7 @@ async function renderKidView(kidId) {
     .querySelectorAll("button.child-task-done-btn")
     .forEach(btn => {
       btn.addEventListener("click", async e => {
+        e.stopPropagation();
         const kId  = btn.getAttribute("data-kid");
         const tId  = btn.getAttribute("data-task");
 
@@ -534,6 +588,23 @@ async function renderKidView(kidId) {
 
         if (unlockedParent) {
           await renderParentView();
+        }
+      });
+    });
+
+  kidTasksArea
+    .querySelectorAll(".child-task-row.task-done .child-task-head")
+    .forEach(head => {
+      head.addEventListener("click", e => {
+        if (e.target.closest("button")) return;
+        const row = head.closest(".child-task-row");
+        if (!row) return;
+        if (row.classList.contains("collapsed")) {
+          row.classList.remove("collapsed");
+          row.classList.add("expanded");
+        } else {
+          row.classList.remove("expanded");
+          row.classList.add("collapsed");
         }
       });
     });
@@ -639,15 +710,14 @@ window.openReplyModal = openReplyModal;
 
 window.saveReply = async function saveReply(){
   const text = replyTextEl.value.trim();
-  if (!text) {
-    alert("כתוב תגובה 🙂");
-    return;
-  }
   await setParentNote(replyCtx.kidId, replyCtx.taskId, text);
   replyModalBg.style.display = "none";
 
   tasksCache[replyCtx.kidId] = await listTasks(replyCtx.kidId);
-  await renderParentView();
+
+  if (unlockedParent) {
+    await renderParentView();
+  }
   if (replyCtx.kidId === currentKidId) {
     await renderKidView(replyCtx.kidId);
   }
@@ -656,26 +726,23 @@ window.saveReply = async function saveReply(){
 // --------------------------------------------------
 // מודאל ניהול ילדים
 // --------------------------------------------------
-window.openManageKidsModal = async function openManageKidsModal() {
+window.openManageKidsModal = async function openManageKidsModal(){
   await ensureKidsLoaded();
-  drawKidsList();
   manageKidsBg.style.display = "flex";
+  drawKidsList();
 };
 
-function drawKidsList() {
+function drawKidsList(){
   kidsList.innerHTML = "";
-  const base = window.location.origin + window.location.pathname;
 
   kidsCache.forEach(k => {
-    const kidLinkSlug = k.slug || k.id;
-    const link = `${base}?kid=${kidLinkSlug}`;
+    const link = `${location.origin}${location.pathname}?kid=${encodeURIComponent(k.slug || k.id)}`;
 
     const row = document.createElement("div");
     row.className = "kid-list-row";
-
     row.innerHTML = `
       <div class="kid-row-left">
-        <span style="color:${k.color || 'inherit'}">${k.icon || "💛"}</span>
+        <span style="color:${k.color || 'inherit'}">${escapeHtml(k.icon || "💛")}</span>
         <span>${escapeHtml(k.name || "")}</span>
       </div>
       <div class="kid-row-actions">
@@ -741,7 +808,7 @@ window.addKid = async function addKidHandler(){
     return;
   }
 
-  const newKidId = await addKid({ name, icon, color });
+  await addKid({ name, icon, color });
 
   kidsCache = await listKids();
 

@@ -215,20 +215,20 @@ button {
   font-size: 20px;
 }
 
-/* שורת משימה במסך הורה */
+/* משימות במסך הורה */
 .task-row {
   background: #fdfdfd;
-  border-radius: 14px;
-  padding: 8px;
-  box-shadow: 0 2px 4px var(--shadow);
+  border-radius: 18px;
+  padding: 10px;
+  box-shadow: 0 2px 6px var(--shadow);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 5px 0;
-  transition: 0.2s ease;
+  margin: 6px 0;
+  transition: all 0.3s ease;
 }
 .task-row:hover {
-  transform: scale(1.01);
+  transform: translateY(-2px);
 }
 .task-main {
   flex: 1;
@@ -237,10 +237,21 @@ button {
 }
 .task-title {
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.task-icon {
+  font-size: 20px;
+  transition: filter 0.3s ease;
+}
+.task-title-text {
+  display: inline-block;
 }
 .task-meta {
   font-size: 13px;
   color: var(--text-mid);
+  margin-top: 4px;
 }
 
 .task-check {
@@ -253,10 +264,10 @@ button {
   font-size: 12px;
   border: none;
   border-radius: 8px;
-  padding: 4px 6px;
+  padding: 4px 8px;
   cursor: pointer;
   transition: 0.2s;
-  min-width: 60px;
+  min-width: 68px;
   box-shadow: 0 2px 4px var(--shadow);
 }
 .task-small-btn.blue {
@@ -266,10 +277,23 @@ button {
   background: #ff9a9a;
 }
 
+/* מצב משימה הושלמה */
+.task-done {
+  opacity: 0.6;
+  transform: scale(0.97);
+  transition: all 0.3s ease;
+}
+.task-done .task-title-text {
+  text-decoration: line-through;
+}
+.task-done .task-icon {
+  filter: grayscale(100%);
+}
+
 /* בועות פידבק למשימות */
 .feedback-bubble {
   background: #fff6d9;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 8px;
   margin: 6px 0 4px 20px;
   font-size: 13px;
@@ -284,12 +308,12 @@ button {
   color: #444;
 }
 
-/* בלוק הודעות (צ'אט הורה-ילד במסך הורה) */
+/* בלוק הודעות במסך הורה */
 .messages-block {
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 3px 6px var(--shadow);
-  padding: 10px;
+  border-radius: 20px;
+  box-shadow: 0 3px 8px var(--shadow);
+  padding: 12px;
   margin-top: 12px;
   font-size: 13px;
   text-align: right;
@@ -297,54 +321,24 @@ button {
 .messages-title {
   font-weight: 600;
   color: var(--text-dark);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-size: 14px;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 .messages-list {
-  max-height: 140px;
+  max-height: 180px;
   overflow-y: auto;
-  border-radius: 10px;
-  background: #fffef8;
-  box-shadow: inset 0 0 4px var(--shadow);
-  padding: 6px;
-  margin-bottom: 8px;
+  padding: 6px 4px;
+  margin-bottom: 10px;
 }
 .msg-empty {
   color: var(--text-mid);
   font-style: italic;
   font-size: 13px;
   text-align: center;
-}
-.msg-row {
-  background: #ffffff;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px var(--shadow);
-  padding: 6px 8px;
-  margin-bottom: 6px;
-  line-height: 1.3;
-  display: flex;
-  flex-direction: column;
-}
-.msg-row.from-child {
-  border-right: 4px solid var(--blue);
-}
-.msg-row.from-parent {
-  border-right: 4px solid var(--pink);
-}
-.msg-meta {
-  font-size: 12px;
-  color: var(--text-mid);
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-.msg-text {
-  font-size: 13px;
-  color: var(--text-dark);
-  white-space: pre-wrap;
-  word-break: break-word;
+  padding: 16px 0;
 }
 .msg-reply-area {
   border-top: 2px dashed #eee;
@@ -352,12 +346,12 @@ button {
 }
 .msg-reply-input {
   width: 100%;
-  border-radius: 10px;
-  border: 1px solid #ccc;
+  border-radius: 12px;
+  border: 1px solid #dcdcdc;
   padding: 8px;
   font-family: inherit;
   font-size: 13px;
-  min-height: 48px;
+  min-height: 56px;
   resize: none;
   box-sizing: border-box;
   background: #fff;
@@ -367,13 +361,71 @@ button {
   margin-top: 8px;
   background: var(--purple);
   border: none;
-  border-radius: 12px;
-  padding: 8px 0;
+  border-radius: 14px;
+  padding: 10px 0;
   font-weight: 600;
   font-size: 14px;
   color: #222;
+  box-shadow: 0 2px 5px var(--shadow);
+  cursor: pointer;
+}
+
+/* צ'אט – שני המסכים */
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chat-row {
+  display: flex;
+  width: 100%;
+}
+.chat-row.parent {
+  justify-content: flex-end;
+}
+.chat-row.child {
+  justify-content: flex-start;
+}
+.chat-bubble {
+  max-width: 82%;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 6px var(--shadow);
+  position: relative;
+  line-height: 1.4;
+}
+.chat-row.parent .chat-bubble {
+  background: linear-gradient(135deg, #ffe0f0, #ffd6ee);
+  border-bottom-left-radius: 8px;
+}
+.chat-row.child .chat-bubble {
+  background: linear-gradient(135deg, #daf2ff, #cce9ff);
+  border-bottom-right-radius: 8px;
+}
+.chat-text {
+  font-size: 13px;
+  color: var(--text-dark);
+  word-break: break-word;
+}
+.chat-delete {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
   box-shadow: 0 2px 4px var(--shadow);
   cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chat-delete:active {
+  transform: scale(0.95);
 }
 
 /* הודעות במסך ילד */
@@ -382,25 +434,22 @@ button {
 }
 .kid-messages-block {
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 3px 6px var(--shadow);
-  padding: 10px;
+  border-radius: 20px;
+  box-shadow: 0 3px 8px var(--shadow);
+  padding: 12px;
   text-align: right;
   font-size: 13px;
 }
 .kid-messages-title {
   font-weight: 600;
   color: var(--text-dark);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-size: 14px;
 }
 .kid-messages-list {
-  max-height: 160px;
+  max-height: 200px;
   overflow-y: auto;
-  border-radius: 10px;
-  background: #fffef8;
-  box-shadow: inset 0 0 4px var(--shadow);
-  padding: 6px;
+  padding: 6px 4px;
 }
 
 /* טאבים ילדים במסך ילד */
@@ -441,24 +490,35 @@ button {
   margin-bottom: 12px;
 }
 
-/* משימת ילד */
+/* משימות במסך ילד */
 .child-task-row {
   background: #fff;
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 10px;
   margin-bottom: 10px;
-  box-shadow: 0 3px 6px var(--shadow);
+  box-shadow: 0 3px 8px var(--shadow);
   text-align: right;
+  transition: all 0.3s ease;
 }
 .child-task-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
+}
+.child-task-row.task-done .child-task-head {
+  cursor: pointer;
+}
+.child-task-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
 }
 .child-task-done-btn {
   background: var(--yellow);
   border: none;
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 6px 12px;
   font-weight: 600;
   cursor: pointer;
@@ -466,8 +526,8 @@ button {
   box-shadow: 0 2px 4px var(--shadow);
 }
 .child-task-done-btn.done {
-  background: var(--green);
-  color: #222;
+  background: #e1e1e1;
+  color: #555;
 }
 .child-task-done-btn:hover {
   transform: scale(1.05);
@@ -475,28 +535,39 @@ button {
 .child-task-meta {
   font-size: 13px;
   color: var(--text-mid);
-  margin-top: 4px;
+  margin-top: 6px;
 }
-.parent-feedback-box {
-  background: #f3fff3;
+.child-task-details {
+  margin-top: 6px;
+  display: none;
+}
+.child-task-row.expanded .child-task-details {
+  display: block;
+}
+.task-note {
+  font-size: 13px;
   border-radius: 12px;
   padding: 6px 8px;
-  font-size: 13px;
-  margin-top: 6px;
   box-shadow: 0 2px 4px var(--shadow);
+  margin-top: 6px;
 }
-.parent-feedback-label {
-  color: var(--green);
-  font-weight: 600;
+.task-note span {
   display: block;
+  font-weight: 600;
   margin-bottom: 2px;
+}
+.task-note.child-note {
+  background: #fff0f6;
+}
+.task-note.parent-note {
+  background: #f1fff2;
 }
 
 /* הודעה להורה במסך ילד */
 .send-feedback-area {
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 3px 6px var(--shadow);
+  border-radius: 20px;
+  box-shadow: 0 3px 8px var(--shadow);
   padding: 12px;
   text-align: right;
   margin-top: 16px;
@@ -508,8 +579,8 @@ button {
 }
 .send-feedback-area textarea {
   width: 100%;
-  border-radius: 10px;
-  border: 1px solid #ccc;
+  border-radius: 12px;
+  border: 1px solid #dcdcdc;
   padding: 8px;
   margin-top: 6px;
   font-family: inherit;
@@ -523,7 +594,7 @@ button {
   margin-top: 10px;
   background: var(--blue);
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 10px 0;
   font-weight: 600;
   box-shadow: 0 2px 4px var(--shadow);
@@ -638,4 +709,15 @@ button {
   color: var(--text-mid);
   text-align: center;
   opacity: 0.8;
+}
+
+/* רספונסיביות */
+@media (max-width: 420px) {
+  .chat-bubble {
+    max-width: 90%;
+  }
+  .messages-list,
+  .kid-messages-list {
+    max-height: 220px;
+  }
 }

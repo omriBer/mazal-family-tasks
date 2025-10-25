@@ -33,7 +33,7 @@ const db  = getFirestore(app);
 //   kidDoc: {
 //     name, slug, icon, color,
 //     childHeadline, childSubline,
-//     parentPraise, order
+//     order
 //   }
 //
 // kids/{kidId}/tasks/{taskId}
@@ -91,7 +91,6 @@ export async function addKid({ name, icon="💛", color="var(--yellow)" }) {
     color,
     childHeadline: `היי ${name} 😊`,
     childSubline: "ברוך הבא למז״ל!",
-    parentPraise: "כל הכבוד על ההתחלה 🌟",
     order: Date.now()
   };
 
@@ -206,4 +205,10 @@ export async function listMessages(kidId) {
 
 export async function addParentReply(kidId, text, replyToMessageId = "") {
   return addMessage(kidId, text, "parent", replyToMessageId);
+}
+
+export async function deleteMessage(kidId, messageId) {
+  if (!kidId || !messageId) return;
+  const ref = doc(db, "kids", kidId, "messages", messageId);
+  await deleteDoc(ref);
 }
