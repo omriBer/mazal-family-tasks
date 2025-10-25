@@ -1,0 +1,1273 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>מז"ל – משימות למשפחה</title>
+<style>
+    :root {
+        --bg: #fdfdfd;
+        --card: #ffffff;
+        --blue: #0066aa;
+        --pink: #ff4f8b;
+        --yellow: #ffd44d;
+        --green: #12b886;
+        --soft: #eef6ff;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --radius-sm: 8px;
+        --shadow-card: 0 12px 28px rgba(0,0,0,0.07);
+        --shadow-btn: 0 6px 14px rgba(0,0,0,0.15);
+        --text-dark: #002449;
+        --text-mid: #445b6f;
+        --border-light: #dbe5ef;
+        --font-stack: "Rubik", system-ui, -apple-system, BlinkMacSystemFont,
+                       "Segoe UI", "Helvetica Neue", sans-serif;
+    }
+
+    body {
+        background: var(--bg);
+        font-family: var(--font-stack);
+        margin:0;
+        padding:16px;
+        color: var(--text-dark);
+        background-image:
+            radial-gradient(circle at 20% 20%, rgba(255,212,77,.35) 0%, rgba(255,212,77,0) 60%),
+            radial-gradient(circle at 80% 10%, rgba(255,79,139,.18) 0%, rgba(255,79,139,0) 60%),
+            radial-gradient(circle at 50% 90%, rgba(18,184,134,.15) 0%, rgba(18,184,134,0) 60%);
+        background-size: cover;
+        min-height:100dvh;
+        box-sizing:border-box;
+        display:flex;
+        justify-content:center;
+    }
+
+    .app-frame{
+        width:100%;
+        max-width:400px;
+        display:flex;
+        flex-direction:column;
+        gap:16px;
+    }
+
+    /* טאב בחירה הורה/ילד */
+    .view-toggle{
+        display:flex;
+        background:var(--card);
+        box-shadow: var(--shadow-card);
+        border-radius:var(--radius-lg);
+        padding:6px;
+        justify-content:space-between;
+        font-size:15px;
+        font-weight:500;
+        color:var(--text-dark);
+    }
+    .toggle-btn{
+        flex:1;
+        text-align:center;
+        background:transparent;
+        border:0;
+        border-radius:var(--radius-md);
+        padding:10px 12px;
+        line-height:1.2;
+        cursor:pointer;
+        font-family:inherit;
+    }
+    .toggle-btn.active{
+        background:var(--soft);
+        box-shadow:0 4px 10px rgba(0,0,0,0.07) inset;
+        font-weight:600;
+        color:var(--blue);
+    }
+
+    /* קלפים */
+    .card{
+        background:var(--card);
+        box-shadow:var(--shadow-card);
+        border-radius:var(--radius-lg);
+        padding:20px 20px 16px;
+        display:none;
+    }
+    .card.active{
+        display:block;
+    }
+
+    /* מסך נעול להורה */
+    .locked-card{
+        text-align:center;
+        padding-top:32px;
+        padding-bottom:32px;
+        font-size:15px;
+        color:var(--text-mid);
+    }
+    .locked-card input{
+        margin-top:12px;
+        font-size:20px;
+        text-align:center;
+        padding:10px 12px;
+        width:140px;
+        border-radius:var(--radius-md);
+        border:1px solid var(--border-light);
+    }
+    .locked-card button{
+        margin-top:16px;
+        width:140px;
+        background:var(--blue);
+        border:0;
+        border-radius:var(--radius-md);
+        color:#fff;
+        font-size:16px;
+        font-weight:600;
+        padding:10px 12px;
+        cursor:pointer;
+        box-shadow:var(--shadow-btn);
+    }
+    .lock-warn{
+        color:var(--pink);
+        font-size:13px;
+        margin-top:8px;
+        min-height:18px;
+    }
+
+    /* כותרת מותג */
+    .brand-header{
+        display:flex;
+        align-items:flex-start;
+        gap:12px;
+        margin-bottom:16px;
+    }
+    .star-icon{
+        width:44px;
+        height:44px;
+        background:var(--yellow);
+        border-radius:50%;
+        box-shadow:0 4px 8px rgba(0,0,0,0.15);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:22px;
+        font-weight:600;
+        color:#002449;
+        position:relative;
+    }
+    .star-icon::after{
+        content:"⭐";
+        position:absolute;
+        font-size:28px;
+        line-height:1;
+        filter:drop-shadow(0 2px 2px rgba(0,0,0,0.15));
+    }
+    .brand-text .title{
+        font-size:28px;
+        line-height:1.1;
+        font-weight:700;
+        color:var(--blue);
+    }
+    .brand-text .subtitle{
+        font-size:15px;
+        line-height:1.4;
+        font-weight:500;
+        color:var(--text-dark);
+    }
+
+    /* אזור התקדמות */
+    .progress-wrap{
+        display:flex;
+        align-items:center;
+        justify-content:flex-start;
+        gap:16px;
+        margin:12px 0 20px;
+        flex-wrap:wrap;
+    }
+    .progress-circle{
+        width:76px;
+        height:76px;
+        border-radius:50%;
+        background:
+            radial-gradient(circle at center,#fff 45%,transparent 46%),
+            conic-gradient(var(--green) 0% 75%, #e8eff5 75% 100%);
+        box-shadow:0 6px 16px rgba(0,0,0,0.08);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:20px;
+        font-weight:600;
+        color:var(--blue);
+    }
+    .progress-desc{
+        flex:1;
+        min-width:140px;
+        font-size:14px;
+        color:var(--text-mid);
+        line-height:1.4;
+        font-weight:400;
+    }
+    .progress-desc b{
+        color:var(--text-dark);
+        font-weight:600;
+        font-size:15px;
+    }
+
+    /* כפתורים */
+    .main-btn{
+        background:var(--green);
+        color:#fff;
+        border:0;
+        border-radius:var(--radius-md);
+        font-size:16px;
+        font-weight:600;
+        padding:12px 16px;
+        width:100%;
+        box-shadow:var(--shadow-btn);
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        gap:8px;
+        cursor:pointer;
+        margin-bottom:16px;
+    }
+    .main-btn .plus{
+        width:28px;
+        height:28px;
+        border-radius:50%;
+        background:rgba(255,255,255,0.2);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:19px;
+        font-weight:600;
+        line-height:1;
+    }
+
+    .sub-btn{
+        background:var(--blue);
+        color:#fff;
+        border:0;
+        border-radius:var(--radius-md);
+        font-size:15px;
+        font-weight:600;
+        padding:10px 12px;
+        width:100%;
+        box-shadow:var(--shadow-btn);
+        cursor:pointer;
+        margin-bottom:12px;
+        text-align:center;
+    }
+
+    /* ילד */
+    .kid-block{
+        border-top:1px solid var(--border-light);
+        padding-top:16px;
+        margin-top:16px;
+    }
+    .kid-header{
+        display:flex;
+        align-items:center;
+        gap:8px;
+        font-weight:600;
+        color:var(--text-dark);
+        font-size:16px;
+        margin-bottom:8px;
+    }
+    .kid-color-heart{
+        font-size:18px;
+        line-height:1;
+    }
+
+    /* משימה */
+    .task-row{
+        background:#fdfefe;
+        border:1px solid var(--border-light);
+        border-radius:var(--radius-md);
+        padding:12px 14px;
+        margin-bottom:10px;
+        display:flex;
+        align-items:flex-start;
+        gap:12px;
+        position:relative;
+        flex-wrap:wrap;
+    }
+    .task-icon{
+        font-size:20px;
+        line-height:1;
+    }
+    .task-main{
+        flex:1;
+        min-width:0;
+    }
+    .task-title{
+        font-size:15px;
+        color:var(--text-dark);
+        line-height:1.4;
+        font-weight:500;
+        margin-bottom:4px;
+    }
+    .task-meta{
+        font-size:13px;
+        color:var(--text-mid);
+        line-height:1.3;
+    }
+    .task-check{
+        flex-shrink:0;
+        display:flex;
+        flex-direction:column;
+        align-items:flex-end;
+        gap:6px;
+        min-width:72px;
+    }
+    .task-check input[type=checkbox]{
+        width:22px;
+        height:22px;
+        accent-color:var(--green);
+        cursor:pointer;
+    }
+    .task-small-btn{
+        font-size:12px;
+        font-weight:600;
+        border-radius:var(--radius-sm);
+        padding:6px 8px;
+        border:0;
+        line-height:1.2;
+        cursor:pointer;
+        box-shadow:var(--shadow-btn);
+        background:var(--pink);
+        color:#fff;
+        min-width:64px;
+        text-align:center;
+    }
+    .task-small-btn.blue{
+        background:var(--blue);
+    }
+    .task-small-btn.red{
+        background:var(--pink);
+    }
+
+    /* הערות */
+    .feedback-bubble{
+        border:1px solid var(--border-light);
+        background:#fffdfc;
+        border-radius:var(--radius-md);
+        padding:12px 14px;
+        margin-top:6px;
+        font-size:13px;
+        line-height:1.4;
+        color:var(--text-dark);
+        box-shadow:0 4px 10px rgba(0,0,0,0.04);
+        width:100%;
+    }
+    .feedback-label{
+        font-weight:600;
+        color:var(--pink);
+        margin-bottom:4px;
+        display:block;
+    }
+
+    /* מסך ילד */
+    .kid-top-line{
+        font-size:18px;
+        font-weight:700;
+        color:var(--text-dark);
+        margin-bottom:4px;
+        line-height:1.3;
+    }
+    .kid-sub-line{
+        font-size:14px;
+        font-weight:400;
+        color:var(--text-mid);
+        line-height:1.4;
+        margin-bottom:16px;
+    }
+
+    /* טאבים של ילדים במסך ילד */
+    .kid-tabs{
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+        margin-bottom:16px;
+    }
+    .kid-tab-btn{
+        border:0;
+        border-radius:var(--radius-md);
+        font-size:14px;
+        font-weight:600;
+        line-height:1.2;
+        padding:8px 12px;
+        cursor:pointer;
+        color:#fff;
+        background:var(--blue);
+        box-shadow:var(--shadow-btn);
+    }
+    .kid-tab-btn.active{
+        background:var(--green);
+    }
+
+    /* כרטיס משימה במסך ילד */
+    .child-task-row{
+        background:#ffffff;
+        border:1px solid var(--border-light);
+        border-radius:var(--radius-md);
+        box-shadow:0 5px 12px rgba(0,0,0,0.05);
+        margin-bottom:12px;
+        padding:14px 14px 12px;
+    }
+    .child-task-head{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:12px;
+        margin-bottom:6px;
+    }
+    .child-task-title{
+        font-size:15px;
+        font-weight:500;
+        color:var(--text-dark);
+        line-height:1.4;
+    }
+    .child-task-done-btn{
+        font-size:13px;
+        font-weight:600;
+        border-radius:var(--radius-sm);
+        padding:6px 10px;
+        border:0;
+        line-height:1.2;
+        cursor:pointer;
+        box-shadow:var(--shadow-btn);
+        background:var(--green);
+        color:#fff;
+        min-width:68px;
+        text-align:center;
+    }
+    .child-task-done-btn.done{
+        background:var(--blue);
+    }
+    .child-task-meta{
+        font-size:12px;
+        color:var(--text-mid);
+        line-height:1.4;
+        margin-bottom:8px;
+    }
+
+    .parent-feedback-box{
+        background:#fffdfc;
+        border:1px solid var(--border-light);
+        border-radius:var(--radius-md);
+        padding:12px 14px;
+        font-size:13px;
+        line-height:1.4;
+        margin-top:8px;
+        color:var(--text-dark);
+    }
+    .parent-feedback-label{
+        font-weight:600;
+        color:var(--blue);
+        display:block;
+        margin-bottom:4px;
+    }
+
+    /* שליחת הודעה להורה */
+    .send-feedback-area{
+        margin-top:20px;
+        border:1px solid var(--border-light);
+        border-radius:var(--radius-md);
+        background:#ffffff;
+        padding:14px;
+        box-shadow:0 6px 16px rgba(0,0,0,0.06);
+    }
+    .send-feedback-area label{
+        display:block;
+        font-size:14px;
+        font-weight:500;
+        color:var(--text-dark);
+        margin-bottom:8px;
+    }
+    .send-feedback-area textarea{
+        width:100%;
+        border:1px solid var(--border-light);
+        border-radius:var(--radius-sm);
+        min-height:60px;
+        font-family:inherit;
+        font-size:14px;
+        line-height:1.4;
+        padding:8px 10px;
+        resize:none;
+        box-sizing:border-box;
+        color:var(--text-dark);
+    }
+    .send-btn{
+        margin-top:12px;
+        width:100%;
+        background:var(--blue);
+        color:#fff;
+        border:0;
+        border-radius:var(--radius-md);
+        font-size:16px;
+        font-weight:600;
+        line-height:1.2;
+        padding:12px 16px;
+        cursor:pointer;
+        box-shadow:var(--shadow-btn);
+    }
+
+    .footer-note{
+        text-align:center;
+        font-size:11px;
+        color:var(--text-mid);
+        margin-bottom:32px;
+        line-height:1.4;
+    }
+
+    /* מודאל כללי */
+    .modal-backdrop{
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,0.4);
+        display:none;
+        align-items:center;
+        justify-content:center;
+        padding:16px;
+        z-index:999;
+    }
+    .modal{
+        background:#fff;
+        width:100%;
+        max-width:360px;
+        border-radius:var(--radius-lg);
+        box-shadow:0 20px 40px rgba(0,0,0,0.25);
+        padding:20px;
+        position:relative;
+        text-align:right;
+        max-height:90dvh;
+        overflow-y:auto;
+    }
+    .modal h2{
+        margin:0 0 12px;
+        font-size:18px;
+        font-weight:600;
+        color:var(--text-dark);
+        line-height:1.3;
+    }
+    .close-modal-btn{
+        position:absolute;
+        left:16px;
+        top:16px;
+        background:transparent;
+        border:0;
+        font-size:18px;
+        line-height:1;
+        cursor:pointer;
+        color:var(--text-mid);
+        font-weight:600;
+    }
+    .modal label{
+        display:block;
+        font-size:14px;
+        font-weight:500;
+        color:var(--text-dark);
+        margin:12px 0 6px;
+    }
+    .modal select,
+    .modal input,
+    .modal textarea{
+        width:100%;
+        border:1px solid var(--border-light);
+        border-radius:var(--radius-sm);
+        font-family:inherit;
+        font-size:14px;
+        line-height:1.4;
+        padding:10px;
+        box-sizing:border-box;
+    }
+    .modal textarea{
+        min-height:60px;
+        resize:none;
+    }
+    .save-task-btn,
+    .manage-kids-btn,
+    .save-reply-btn{
+        width:100%;
+        background:var(--green);
+        border:0;
+        border-radius:var(--radius-md);
+        color:#fff;
+        font-size:16px;
+        font-weight:600;
+        padding:12px 16px;
+        margin-top:16px;
+        cursor:pointer;
+        box-shadow:var(--shadow-btn);
+    }
+
+    .danger-btn{
+        width:100%;
+        background:var(--pink);
+        border:0;
+        border-radius:var(--radius-md);
+        color:#fff;
+        font-size:14px;
+        font-weight:600;
+        padding:10px 12px;
+        margin-top:8px;
+        cursor:pointer;
+        box-shadow:var(--shadow-btn);
+        text-align:center;
+    }
+
+    .kid-list-row{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        border:1px solid var(--border-light);
+        border-radius:var(--radius-md);
+        padding:10px 12px;
+        margin-bottom:8px;
+        font-size:14px;
+        box-shadow:0 4px 10px rgba(0,0,0,0.04);
+    }
+    .kid-list-row span{
+        display:flex;
+        gap:6px;
+        align-items:center;
+        font-weight:500;
+        color:var(--text-dark);
+    }
+    .kid-remove-btn{
+        background:var(--pink);
+        color:#fff;
+        border:0;
+        border-radius:var(--radius-sm);
+        padding:6px 8px;
+        font-size:12px;
+        font-weight:600;
+        cursor:pointer;
+        box-shadow:var(--shadow-btn);
+    }
+
+</style>
+</head>
+<body>
+<div class="app-frame">
+
+    <!-- טאב הורה / ילד -->
+    <div class="view-toggle">
+        <button class="toggle-btn active" id="parentTab" onclick="openParentView()">הורה 👨‍👧</button>
+        <button class="toggle-btn" id="kidTab" onclick="showCard('kid')">ילד 👧</button>
+    </div>
+
+    <!-- מסך הורה (או נעול) -->
+    <section class="card active" id="parentCard" aria-labelledby="parentTab">
+        <!-- תת-מצב נעול -->
+        <div id="parentLocked" class="locked-card">
+            <div style="font-size:20px;font-weight:600;color:var(--text-dark);margin-bottom:8px;">
+                🔒 איזור הורה נעול
+            </div>
+            <div>הכנס קוד בן 4 ספרות</div>
+            <input id="parentPassInput" type="password" maxlength="4" placeholder="••••" />
+            <button onclick="tryUnlockParent()">כניסה</button>
+            <div class="lock-warn" id="lockWarn"></div>
+        </div>
+
+        <!-- תוכן הורה (רק אחרי סיסמה) -->
+        <div id="parentContent" style="display:none;">
+
+            <header class="brand-header">
+                <div class="star-icon" aria-hidden="true"></div>
+                <div class="brand-text">
+                    <div class="title">מז״ל</div>
+                    <div class="subtitle">שלום עומרי 👋<br>הנה המשימות של הילדים להיום</div>
+                </div>
+            </header>
+
+            <div class="progress-wrap">
+                <div class="progress-circle" id="overallProgress">75%</div>
+                <div class="progress-desc" id="overallText">
+                    <b>התקדמות כללית להיום</b><br>
+                    רוני סיימה כמעט הכול ✨<br>
+                    ג׳ון עוד משימה אחת 🙂
+                </div>
+            </div>
+
+            <button class="main-btn" id="openAddTask">
+                <span class="plus">+</span>
+                הוספת משימה חדשה
+            </button>
+
+            <button class="sub-btn" id="openManageKids">ניהול ילדים 👨‍👧➕</button>
+
+            <!-- אזור הילדים (ייבנה דינמית) -->
+            <div id="parentKidsArea"></div>
+        </div>
+    </section>
+
+    <!-- מסך ילד -->
+    <section class="card" id="kidCard" aria-labelledby="kidTab">
+        <header class="brand-header">
+            <div class="star-icon" aria-hidden="true"></div>
+            <div class="brand-text">
+                <div class="title">מז״ל</div>
+                <div class="subtitle">
+                    <span id="kidHeaderName">היי רוני 🌸</span><br>
+                    אלו המשימות שלך להיום
+                </div>
+            </div>
+        </header>
+
+        <!-- טאבים של כל הילדים -->
+        <div class="kid-tabs" id="kidTabsArea"></div>
+
+        <div class="kid-top-line" id="kidHeadline">יהי מי נורי! 💖</div>
+        <div class="kid-sub-line" id="kidSubline">כמעט סיימת הכל. את אלופה.</div>
+
+        <div id="kidTasksArea"></div>
+
+        <div class="send-feedback-area">
+            <label for="kidNote">תרצה לשלוח הודעה להורה?</label>
+            <textarea id="kidNote" placeholder="היה לי קצת קשה לקפל את החולצות 👕😅"></textarea>
+            <button class="send-btn">שליחה להורה ➜</button>
+        </div>
+    </section>
+
+    <div class="footer-note">
+        מז״ל – משימות, זמן ולב ❤<br>
+        גרסת הדגמה
+    </div>
+</div>
+
+<!-- מודאל הוספת משימה -->
+<div class="modal-backdrop" id="taskModalBg">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <button class="close-modal-btn" onclick="closeModal('taskModalBg')" aria-label="סגור">✕</button>
+        <h2 id="modalTitle">משימה חדשה</h2>
+
+        <label for="taskChild">למי המשימה?</label>
+        <select id="taskChild"></select>
+
+        <label for="taskTitle">שם המשימה</label>
+        <input id="taskTitle" placeholder="לסדר את החדר 🧹" />
+
+        <label for="taskMeta">תיאור / יעד</label>
+        <textarea id="taskMeta" placeholder="לפני ארוחת ערב, לבד בלי עזרה"></textarea>
+
+        <button class="save-task-btn" onclick="saveNewTask()">שמור</button>
+    </div>
+</div>
+
+<!-- מודאל הוספת תגובה למשימה -->
+<div class="modal-backdrop" id="replyModalBg">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="replyTitle">
+        <button class="close-modal-btn" onclick="closeModal('replyModalBg')" aria-label="סגור">✕</button>
+        <h2 id="replyTitle">תגובה למשימה</h2>
+
+        <div id="replyTaskName" style="font-size:14px;color:var(--text-mid);margin-bottom:8px;"></div>
+
+        <label for="replyText">הודעת הורה</label>
+        <textarea id="replyText" placeholder="כל הכבוד על המאמץ 💖"></textarea>
+
+        <button class="save-reply-btn" onclick="saveReply()">שמור תגובה</button>
+    </div>
+</div>
+
+<!-- מודאל ניהול ילדים -->
+<div class="modal-backdrop" id="manageKidsBg">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="manageKidsTitle">
+        <button class="close-modal-btn" onclick="closeModal('manageKidsBg')" aria-label="סגור">✕</button>
+        <h2 id="manageKidsTitle">ניהול ילדים</h2>
+
+        <div id="kidsList"></div>
+
+        <label for="newKidName">שם ילד חדש</label>
+        <input id="newKidName" placeholder="למשל: גיל" />
+
+        <label for="newKidIcon">אייקון/לב לילד</label>
+        <input id="newKidIcon" placeholder="💛" />
+
+        <label for="newKidColor">צבע CSS (למתקדמים) או ריק</label>
+        <input id="newKidColor" placeholder="var(--yellow)" />
+
+        <button class="manage-kids-btn" onclick="addKid()">הוסף ילד</button>
+    </div>
+</div>
+
+<script>
+/* -------------------------
+   ניהול דאטה בסיסי
+-------------------------- */
+
+const PARENT_PASSWORD = "9999"; // סיסמה לאיזור הורה
+
+let unlockedParent = false; // נשמר בזיכרון רענון (runtime)
+
+const appData = {
+    kidsOrder: ["רוני","ג׳ון"],
+
+    kids: {
+        "רוני": {
+            color: "var(--pink)",
+            icon: "❤",
+            tasks: [
+                { title: "לסדר את החדר", meta: "יעד: לפני ארוחת ערב", icon:"🧹", done:false,
+                  childNote:"סידרתי את המיטה לבד!!!! ⭐✨",
+                  parentNote:null },
+                { title: "דף עבודה בחשבון", meta: "10 דקות תרגול חיסור", icon:"📘", done:true,
+                  childNote:null,
+                  parentNote:null }
+            ],
+            childHeadline: "יהי מי נורי! 💖",
+            childSubline: "כמעט סיימת הכל. את אלופה.",
+            parentPraise: "גאווה! עשית את זה לבד. 👏"
+        },
+        "ג׳ון": {
+            color: "var(--blue)",
+            icon: "💙",
+            tasks: [
+                { title: "להוריד את הכלים מהשולחן", meta: "אחרי ארוחת צהריים", icon:"🍽️", done:false,
+                  childNote:null,
+                  parentNote:"כל הכבוד על העזרה בבית 💪💖" }
+            ],
+            childHeadline: "מה קורה תותח? 💪",
+            childSubline: "נשארה לך רק משימה אחת.",
+            parentPraise: "אני מעריך אותך ממש!"
+        }
+    }
+};
+
+// מי הילד שמוצג כרגע בטאב 'ילד'
+let currentKidView = "רוני";
+
+// איזה משימה כרגע בעריכת תגובה
+let replyContext = { kidName:null, taskIndex:null };
+
+/* -------------------------
+   UI עזר
+-------------------------- */
+
+function openParentView() {
+    showCard('parent');
+    if (!unlockedParent) {
+        // נשאיר מסך נעול
+        document.getElementById("parentLocked").style.display = "block";
+        document.getElementById("parentContent").style.display = "none";
+    } else {
+        document.getElementById("parentLocked").style.display = "none";
+        document.getElementById("parentContent").style.display = "block";
+        renderParentView();
+    }
+}
+
+function tryUnlockParent(){
+    const inp = document.getElementById("parentPassInput").value.trim();
+    const warn = document.getElementById("lockWarn");
+    if(inp === PARENT_PASSWORD){
+        unlockedParent = true;
+        warn.textContent = "";
+        document.getElementById("parentLocked").style.display = "none";
+        document.getElementById("parentContent").style.display = "block";
+        renderParentView();
+    } else {
+        warn.textContent = "סיסמה לא נכונה";
+    }
+}
+
+function showCard(which){
+    const parentCard = document.getElementById("parentCard");
+    const kidCard = document.getElementById("kidCard");
+    const parentTab = document.getElementById("parentTab");
+    const kidTab = document.getElementById("kidTab");
+
+    if(which === 'parent'){
+        parentCard.classList.add("active");
+        kidCard.classList.remove("active");
+        parentTab.classList.add("active");
+        kidTab.classList.remove("active");
+    } else {
+        kidCard.classList.add("active");
+        parentCard.classList.remove("active");
+        kidTab.classList.add("active");
+        parentTab.classList.remove("active");
+        renderKidTabs();
+        renderKidView(currentKidView);
+    }
+}
+
+/* -------------------------
+   רינדור הורה
+-------------------------- */
+
+function renderParentView(){
+    const parentKidsArea = document.getElementById("parentKidsArea");
+    parentKidsArea.innerHTML = "";
+
+    appData.kidsOrder.forEach(kidName => {
+        const kid = appData.kids[kidName];
+        if(!kid) return;
+
+        const kidBlock = document.createElement("div");
+        kidBlock.className = "kid-block";
+
+        const header = document.createElement("div");
+        header.className = "kid-header";
+        header.innerHTML = `
+            <span class="kid-color-heart" style="color:${kid.color}">${kid.icon}</span>
+            <span>${kidName}</span>
+        `;
+        kidBlock.appendChild(header);
+
+        kid.tasks.forEach((t, idx)=>{
+            const row = document.createElement("div");
+            row.className = "task-row";
+
+            row.innerHTML = `
+                <div class="task-icon">${t.icon || ""}</div>
+                <div class="task-main">
+                    <div class="task-title">${t.title}</div>
+                    <div class="task-meta">${t.meta || ""}</div>
+                </div>
+
+                <div class="task-check">
+                    <input type="checkbox"
+                        ${t.done ? "checked":""}
+                        data-kid="${kidName}"
+                        data-idx="${idx}" />
+
+                    <button class="task-small-btn blue"
+                        data-action="reply"
+                        data-kid="${kidName}"
+                        data-idx="${idx}">
+                        הוסף תגובה 💬
+                    </button>
+
+                    <button class="task-small-btn red"
+                        data-action="delete"
+                        data-kid="${kidName}"
+                        data-idx="${idx}">
+                        מחיקה 🗑
+                    </button>
+                </div>
+            `;
+
+            kidBlock.appendChild(row);
+
+            if (t.childNote || t.parentNote){
+                const fb = document.createElement("div");
+                fb.className = "feedback-bubble";
+
+                if (t.childNote){
+                    fb.innerHTML = `
+                        <span class="feedback-label">הערה מ${kidName}:</span>
+                        ${t.childNote}
+                    `;
+                }
+                if (t.parentNote){
+                    fb.innerHTML += `
+                        <span class="feedback-label" style="color:var(--green)">תגובה הורה:</span>
+                        ${t.parentNote}
+                    `;
+                }
+
+                kidBlock.appendChild(fb);
+            }
+        });
+
+        parentKidsArea.appendChild(kidBlock);
+    });
+
+    // צ'קבוקס done
+    parentKidsArea.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+        cb.addEventListener("change", e=>{
+            const kidName = e.target.getAttribute("data-kid");
+            const idx     = e.target.getAttribute("data-idx");
+            appData.kids[kidName].tasks[idx].done = e.target.checked;
+            renderKidView(currentKidView);
+            updateProgress();
+        });
+    });
+
+    // כפתורי תגובה / מחיקה
+    parentKidsArea.querySelectorAll("button.task-small-btn").forEach(btn=>{
+        btn.addEventListener("click", e=>{
+            const action  = e.target.getAttribute("data-action");
+            const kidName = e.target.getAttribute("data-kid");
+            const idx     = parseInt(e.target.getAttribute("data-idx"),10);
+
+            if(action === "delete"){
+                deleteTask(kidName, idx);
+            } else if(action === "reply"){
+                openReplyModal(kidName, idx);
+            }
+        });
+    });
+
+    updateProgress();
+}
+
+/* -------------------------
+   רינדור טאבים לילדים במסך ילד
+-------------------------- */
+function renderKidTabs(){
+    const tabsArea = document.getElementById("kidTabsArea");
+    tabsArea.innerHTML = "";
+
+    appData.kidsOrder.forEach(kidName=>{
+        if(!appData.kids[kidName]) return;
+        const btn = document.createElement("button");
+        btn.className = "kid-tab-btn" + (kidName===currentKidView ? " active":"");
+        btn.textContent = kidName;
+        btn.addEventListener("click", ()=>{
+            currentKidView = kidName;
+            renderKidTabs();
+            renderKidView(kidName);
+        });
+        tabsArea.appendChild(btn);
+    });
+}
+
+/* -------------------------
+   רינדור מסך ילד
+-------------------------- */
+function renderKidView(kidName){
+    const kid = appData.kids[kidName];
+    if(!kid) return;
+
+    const kidHeaderName = document.getElementById("kidHeaderName");
+    const kidHeadlineEl = document.getElementById("kidHeadline");
+    const kidSublineEl  = document.getElementById("kidSubline");
+    const kidTasksArea  = document.getElementById("kidTasksArea");
+
+    kidHeaderName.textContent = "היי " + kidName + " " + kid.icon;
+    kidHeadlineEl.textContent = kid.childHeadline;
+    kidSublineEl.textContent  = kid.childSubline;
+
+    kidTasksArea.innerHTML = "";
+
+    kid.tasks.forEach((t, idx)=>{
+        const wrap = document.createElement("div");
+        wrap.className = "child-task-row";
+
+        const doneClass = t.done ? "child-task-done-btn done" : "child-task-done-btn";
+        wrap.innerHTML = `
+            <div class="child-task-head">
+                <div class="child-task-title">${t.title} ${t.icon || ""}</div>
+                <button class="${doneClass}"
+                    data-kid="${kidName}"
+                    data-idx="${idx}">
+                    ${t.done ? "✔ בוצע" : "סיימתי"}
+                </button>
+            </div>
+            <div class="child-task-meta">${t.meta || ""}</div>
+        `;
+
+        // פידבק הורה כללי לילד בתור חיזוק ראשון
+        if(idx === 0 && kid.parentPraise){
+            const fbBox = document.createElement("div");
+            fbBox.className = "parent-feedback-box";
+            fbBox.innerHTML = `
+                <span class="parent-feedback-label">פידבק מההורה</span>
+                ${kid.parentPraise}
+            `;
+            wrap.appendChild(fbBox);
+        }
+
+        kidTasksArea.appendChild(wrap);
+    });
+
+    // לחיצה מצד ילד על "סיימתי"
+    kidTasksArea.querySelectorAll("button.child-task-done-btn").forEach(btn=>{
+        btn.addEventListener("click", e=>{
+            const k = e.target.getAttribute("data-kid");
+            const i = e.target.getAttribute("data-idx");
+            const task = appData.kids[k].tasks[i];
+            task.done = !task.done;
+            renderKidView(k);
+            if(unlockedParent) renderParentView();
+            updateProgress();
+        });
+    });
+}
+
+/* -------------------------
+   חישוב אחוז התקדמות
+-------------------------- */
+function updateProgress(){
+    let total=0;
+    let done=0;
+    appData.kidsOrder.forEach(k=>{
+        const kid = appData.kids[k];
+        if(!kid) return;
+        kid.tasks.forEach(t=>{
+            total++;
+            if(t.done) done++;
+        });
+    });
+    const percent = total===0 ? 0 : Math.round((done/total)*100);
+    document.getElementById("overallProgress").textContent = percent+"%";
+}
+
+/* -------------------------
+   מודאל הוספת משימה
+-------------------------- */
+const taskModalBg = document.getElementById("taskModalBg");
+
+function openAddTaskModal(){
+    fillChildSelect();
+    taskModalBg.style.display = "flex";
+}
+function closeModal(id){
+    document.getElementById(id).style.display="none";
+}
+function fillChildSelect(){
+    const sel = document.getElementById("taskChild");
+    sel.innerHTML = "";
+    appData.kidsOrder.forEach(kName=>{
+        if(!appData.kids[kName]) return;
+        const opt = document.createElement("option");
+        opt.value = kName;
+        opt.textContent = kName;
+        sel.appendChild(opt);
+    });
+    document.getElementById("taskTitle").value="";
+    document.getElementById("taskMeta").value="";
+}
+function saveNewTask(){
+    const kidName = document.getElementById("taskChild").value;
+    const title   = document.getElementById("taskTitle").value.trim();
+    const meta    = document.getElementById("taskMeta").value.trim();
+    if(!title){ alert("חייבים שם משימה 🙂"); return; }
+
+    appData.kids[kidName].tasks.push({
+        title,
+        meta,
+        icon:"🆕",
+        done:false,
+        childNote:null,
+        parentNote:null
+    });
+
+    closeModal("taskModalBg");
+    if(unlockedParent) renderParentView();
+    if(kidName === currentKidView) renderKidView(kidName);
+    updateProgress();
+}
+
+/* -------------------------
+   מחיקת משימה
+-------------------------- */
+function deleteTask(kidName, idx){
+    appData.kids[kidName].tasks.splice(idx,1);
+    if(unlockedParent) renderParentView();
+    if(kidName === currentKidView) renderKidView(kidName);
+    updateProgress();
+}
+
+/* -------------------------
+   תגובה למשימה (reply modal)
+-------------------------- */
+const replyModalBg = document.getElementById("replyModalBg");
+function openReplyModal(kidName, idx){
+    replyContext.kidName = kidName;
+    replyContext.taskIndex = idx;
+    const t = appData.kids[kidName].tasks[idx];
+    document.getElementById("replyTaskName").textContent =
+        kidName + " • " + t.title;
+    document.getElementById("replyText").value = t.parentNote || "";
+    replyModalBg.style.display = "flex";
+}
+function saveReply(){
+    const text = document.getElementById("replyText").value.trim();
+    const { kidName, taskIndex } = replyContext;
+    if(kidName==null) return;
+    appData.kids[kidName].tasks[taskIndex].parentNote = text || null;
+    closeModal("replyModalBg");
+    if(unlockedParent) renderParentView();
+    if(kidName === currentKidView) renderKidView(kidName);
+}
+
+/* -------------------------
+   ניהול ילדים
+-------------------------- */
+const manageKidsBg = document.getElementById("manageKidsBg");
+function openManageKidsModal(){
+    drawKidsList();
+    manageKidsBg.style.display = "flex";
+}
+function drawKidsList(){
+    const wrap = document.getElementById("kidsList");
+    wrap.innerHTML = "";
+    appData.kidsOrder.forEach(kName=>{
+        const k = appData.kids[kName];
+        if(!k) return;
+        const row = document.createElement("div");
+        row.className = "kid-list-row";
+        row.innerHTML = `
+            <span>
+                <span style="color:${k.color}">${k.icon}</span>
+                <span>${kName}</span>
+            </span>
+            <button class="kid-remove-btn" data-kid="${kName}">הסרה</button>
+        `;
+        wrap.appendChild(row);
+    });
+
+    wrap.querySelectorAll(".kid-remove-btn").forEach(btn=>{
+        btn.addEventListener("click", e=>{
+            const kidName = e.target.getAttribute("data-kid");
+            removeKid(kidName);
+            drawKidsList();
+        });
+    });
+}
+function addKid(){
+    const name = document.getElementById("newKidName").value.trim();
+    const icon = document.getElementById("newKidIcon").value.trim() || "💛";
+    const color = document.getElementById("newKidColor").value.trim() || "var(--yellow)";
+    if(!name){ alert("שם ילד חובה"); return; }
+    if(appData.kids[name]){
+        alert("הילד כבר קיים במערכת");
+        return;
+    }
+    appData.kids[name] = {
+        color,
+        icon,
+        tasks: [],
+        childHeadline: "היי " + name + " 😊",
+        childSubline: "ברוך הבא למז״ל!",
+        parentPraise: "כל הכבוד על ההתחלה 🌟"
+    };
+    appData.kidsOrder.push(name);
+
+    document.getElementById("newKidName").value="";
+    document.getElementById("newKidIcon").value="";
+    document.getElementById("newKidColor").value="";
+
+    drawKidsList();
+    if(unlockedParent) renderParentView();
+    renderKidTabs();
+}
+function removeKid(kidName){
+    // מוחק מהkidsOrder
+    appData.kidsOrder = appData.kidsOrder.filter(k=>k!==kidName);
+    delete appData.kids[kidName];
+
+    if(currentKidView === kidName){
+        currentKidView = appData.kidsOrder[0] || "";
+    }
+
+    if(unlockedParent) renderParentView();
+    renderKidTabs();
+    renderKidView(currentKidView);
+}
+
+/* -------------------------
+   מאזינים ראשונים
+-------------------------- */
+document.getElementById("openAddTask").addEventListener("click", openAddTaskModal);
+document.getElementById("openManageKids").addEventListener("click", openManageKidsModal);
+
+/* -------------------------
+   רינדור ראשוני
+-------------------------- */
+openParentView(); // ברירת מחדל: כרטיס הורה פתוח אבל נעול
+renderKidTabs();
+renderKidView(currentKidView);
+updateProgress();
+</script>
+</body>
+</html>
