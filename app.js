@@ -18,46 +18,168 @@ import {
   subscribeTasks
 } from "./db.js";
 
-// אלמנטים עיקריים
-const parentCard      = document.getElementById("parentCard");
-const kidCard         = document.getElementById("kidCard");
-
-const parentTabBtn    = document.getElementById("parentTab");
-const kidTabBtn       = document.getElementById("kidTab");
-
-const parentLocked    = document.getElementById("parentLocked");
-const parentContent   = document.getElementById("parentContent");
-const parentPassInput = document.getElementById("parentPassInput");
-const lockWarn        = document.getElementById("lockWarn");
-
-const parentKidsArea  = document.getElementById("parentKidsArea");
-const overallProgress = document.getElementById("overallProgress");
-const overallText     = document.getElementById("overallText");
-
-const kidTabsArea     = document.getElementById("kidTabsArea");
-const kidHeaderName   = document.getElementById("kidHeaderName");
-const kidHeadlineEl   = document.getElementById("kidHeadline");
-const kidSublineEl    = document.getElementById("kidSubline");
-const kidTasksArea    = document.getElementById("kidTasksArea");
-const kidMessagesArea = document.getElementById("kidMessagesArea");
+// אזורי מונטאז'
+const viewToggleRoot = document.getElementById("viewToggleRoot");
+const parentMount    = document.getElementById("parentMount");
+const kidMount       = document.getElementById("kidMount");
 const syncStatusContainer = document.getElementById("syncStatusContainer");
 
-const taskModalBg     = document.getElementById("taskModalBg");
-const taskChildSel    = document.getElementById("taskChild");
-const taskTitleInp    = document.getElementById("taskTitle");
-const taskMetaInp     = document.getElementById("taskMeta");
+// אלמנטים שנאתחל דינמית
+let parentCard      = null;
+let kidCard         = null;
 
-const replyModalBg    = document.getElementById("replyModalBg");
-const replyTaskName   = document.getElementById("replyTaskName");
-const replyTextEl     = document.getElementById("replyText");
+let parentTabBtn    = null;
+let kidTabBtn       = null;
 
-const manageKidsBg    = document.getElementById("manageKidsBg");
-const kidsList        = document.getElementById("kidsList");
-const newKidNameInp   = document.getElementById("newKidName");
-const newKidIconInp   = document.getElementById("newKidIcon");
-const newKidColorInp  = document.getElementById("newKidColor");
+let parentLocked    = null;
+let parentContent   = null;
+let parentPassInput = null;
+let lockWarn        = null;
+
+let parentKidsArea  = null;
+let overallProgress = null;
+let overallText     = null;
+
+let kidTabsArea     = null;
+let kidHeaderName   = null;
+let kidHeadlineEl   = null;
+let kidSublineEl    = null;
+let kidTasksArea    = null;
+let kidMessagesArea = null;
+
+let taskModalBg     = null;
+let taskChildSel    = null;
+let taskTitleInp    = null;
+let taskMetaInp     = null;
+
+let replyModalBg    = null;
+let replyTaskName   = null;
+let replyTextEl     = null;
+
+let manageKidsBg    = null;
+let kidsList        = null;
+let newKidNameInp   = null;
+let newKidIconInp   = null;
+let newKidColorInp  = null;
+
+let kidMissingCard  = null;
 
 const PARENT_PASSWORD = "9999";
+
+let requestedKidSlug   = "";
+let kidPrivateMode     = false;
+let viewToggleMounted  = false;
+let parentUiMounted    = false;
+let parentModalsMounted = false;
+let kidUiMounted       = false;
+let kidNotFoundMode    = false;
+
+function mountViewToggle() {
+  if (viewToggleMounted || !viewToggleRoot) return;
+  const tpl = document.getElementById("viewToggleTemplate");
+  if (!tpl) return;
+
+  const clone = tpl.content.cloneNode(true);
+  viewToggleRoot.appendChild(clone);
+
+  parentTabBtn = document.getElementById("parentTab");
+  kidTabBtn    = document.getElementById("kidTab");
+
+  viewToggleMounted = true;
+}
+
+function mountParentModals() {
+  if (parentModalsMounted) return;
+  const tpl = document.getElementById("parentModalsTemplate");
+  if (!tpl) return;
+
+  const clone = tpl.content.cloneNode(true);
+  document.body.appendChild(clone);
+
+  taskModalBg   = document.getElementById("taskModalBg");
+  taskChildSel  = document.getElementById("taskChild");
+  taskTitleInp  = document.getElementById("taskTitle");
+  taskMetaInp   = document.getElementById("taskMeta");
+
+  replyModalBg  = document.getElementById("replyModalBg");
+  replyTaskName = document.getElementById("replyTaskName");
+  replyTextEl   = document.getElementById("replyText");
+
+  manageKidsBg   = document.getElementById("manageKidsBg");
+  kidsList       = document.getElementById("kidsList");
+  newKidNameInp  = document.getElementById("newKidName");
+  newKidIconInp  = document.getElementById("newKidIcon");
+  newKidColorInp = document.getElementById("newKidColor");
+
+  parentModalsMounted = true;
+}
+
+function mountParentUi() {
+  if (parentUiMounted || !parentMount) return;
+  const tpl = document.getElementById("parentViewTemplate");
+  if (!tpl) return;
+
+  const clone = tpl.content.cloneNode(true);
+  parentMount.appendChild(clone);
+
+  parentCard      = document.getElementById("parentCard");
+  parentLocked    = document.getElementById("parentLocked");
+  parentContent   = document.getElementById("parentContent");
+  parentPassInput = document.getElementById("parentPassInput");
+  lockWarn        = document.getElementById("lockWarn");
+
+  parentKidsArea  = document.getElementById("parentKidsArea");
+  overallProgress = document.getElementById("overallProgress");
+  overallText     = document.getElementById("overallText");
+
+  parentUiMounted = true;
+  mountParentModals();
+}
+
+function mountKidUi() {
+  if (kidUiMounted || !kidMount) return;
+  const tpl = document.getElementById("kidViewTemplate");
+  if (!tpl) return;
+
+  const clone = tpl.content.cloneNode(true);
+  kidMount.innerHTML = "";
+  kidMount.appendChild(clone);
+
+  kidCard         = document.getElementById("kidCard");
+  kidTabsArea     = document.getElementById("kidTabsArea");
+  kidHeaderName   = document.getElementById("kidHeaderName");
+  kidHeadlineEl   = document.getElementById("kidHeadline");
+  kidSublineEl    = document.getElementById("kidSubline");
+  kidTasksArea    = document.getElementById("kidTasksArea");
+  kidMessagesArea = document.getElementById("kidMessagesArea");
+
+  kidUiMounted    = true;
+  kidNotFoundMode = false;
+  kidMissingCard  = null;
+}
+
+function mountKidMissingCard() {
+  if (!kidMount) return;
+  const tpl = document.getElementById("kidMissingTemplate");
+  if (!tpl) return;
+
+  kidMount.innerHTML = "";
+  const clone = tpl.content.cloneNode(true);
+  kidMount.appendChild(clone);
+
+  kidCard        = document.getElementById("kidMissingCard");
+  kidMissingCard = kidCard;
+
+  kidUiMounted    = false;
+  kidNotFoundMode = true;
+
+  kidTabsArea     = null;
+  kidHeaderName   = null;
+  kidHeadlineEl   = null;
+  kidSublineEl    = null;
+  kidTasksArea    = null;
+  kidMessagesArea = null;
+}
 
 // סטייט בריצה
 let unlockedParent = false;
@@ -87,16 +209,16 @@ let realtimeSuccessShown = false;
 // --------------------------------------------------
 function showView(which){
   if(which === "parent"){
-    parentCard.classList.add("active");
-    kidCard.classList.remove("active");
-    parentTabBtn.classList.add("active");
-    kidTabBtn.classList.remove("active");
+    if (parentCard) parentCard.classList.add("active");
+    if (kidCard) kidCard.classList.remove("active");
+    if (parentTabBtn) parentTabBtn.classList.add("active");
+    if (kidTabBtn) kidTabBtn.classList.remove("active");
     activeView = "parent";
   } else {
-    kidCard.classList.add("active");
-    parentCard.classList.remove("active");
-    kidTabBtn.classList.add("active");
-    parentTabBtn.classList.remove("active");
+    if (kidCard) kidCard.classList.add("active");
+    if (parentCard) parentCard.classList.remove("active");
+    if (kidTabBtn) kidTabBtn.classList.add("active");
+    if (parentTabBtn) parentTabBtn.classList.remove("active");
     activeView = "kid";
   }
 }
@@ -359,14 +481,18 @@ function shouldShowParentMessageHint(kidId, { consume = true } = {}) {
 // כניסה להורה
 // --------------------------------------------------
 window.openParentView = async function openParentView() {
+  if (kidPrivateMode) return;
+  mountParentUi();
+  if (!parentCard) return;
+
   showView("parent");
 
   if (!unlockedParent) {
-    parentLocked.style.display  = "block";
-    parentContent.style.display = "none";
+    if (parentLocked) parentLocked.style.display  = "block";
+    if (parentContent) parentContent.style.display = "none";
   } else {
-    parentLocked.style.display  = "none";
-    parentContent.style.display = "block";
+    if (parentLocked) parentLocked.style.display  = "none";
+    if (parentContent) parentContent.style.display = "block";
     try {
       await renderParentView();
     } catch (err) {
@@ -376,18 +502,20 @@ window.openParentView = async function openParentView() {
 };
 
 window.tryUnlockParent = async function tryUnlockParent() {
+  if (kidPrivateMode || !parentPassInput) return;
+
   if (parentPassInput.value.trim() === PARENT_PASSWORD) {
     unlockedParent = true;
-    lockWarn.textContent = "";
-    parentLocked.style.display  = "none";
-    parentContent.style.display = "block";
+    if (lockWarn) lockWarn.textContent = "";
+    if (parentLocked) parentLocked.style.display  = "none";
+    if (parentContent) parentContent.style.display = "block";
     try {
       await renderParentView();
     } catch (err) {
       console.error("renderParentView error:", err);
     }
   } else {
-    lockWarn.textContent = "סיסמה לא נכונה";
+    if (lockWarn) lockWarn.textContent = "סיסמה לא נכונה";
   }
 };
 
@@ -398,6 +526,14 @@ window.showCard = async function showCard(which){
   showView(which);
 
   if (which === "kid") {
+    if (kidNotFoundMode) {
+      return;
+    }
+
+    if (!kidUiMounted) {
+      mountKidUi();
+    }
+
     await ensureKidsLoaded();
 
     if (!currentKidId && kidsCache.length > 0) {
@@ -409,14 +545,19 @@ window.showCard = async function showCard(which){
     if (currentKidId) {
       await renderKidView(currentKidId);
     } else {
-      kidTasksArea.innerHTML = "אין ילדים עדיין 🤔";
-      if (kidMessagesArea) {
-        kidMessagesArea.innerHTML = "";
-      }
+      if (kidTasksArea) kidTasksArea.innerHTML = "אין ילדים עדיין 🤔";
+      if (kidMessagesArea) kidMessagesArea.innerHTML = "";
     }
   }
 
   if (which === "parent") {
+    if (kidPrivateMode) {
+      return;
+    }
+
+    mountParentUi();
+    if (!parentLocked || !parentContent) return;
+
     if (!unlockedParent) {
       parentLocked.style.display  = "block";
       parentContent.style.display = "none";
@@ -436,9 +577,38 @@ window.showCard = async function showCard(which){
 // טעינת דאטה מהענן
 // --------------------------------------------------
 async function ensureKidsLoaded({ force = false } = {}) {
-  if (kidsCache.length === 0 || force) {
+  if (kidPrivateMode) {
+    if (kidsCache.length === 0 || force) {
+      const allKids = await listKids();
+      const targetSlug = (requestedKidSlug || "").toLowerCase();
+      const targetKid = allKids.find(k => {
+        const kidSlug = (k.slug || "").toLowerCase();
+        return kidSlug === targetSlug || k.id === requestedKidSlug;
+      });
+
+      if (targetKid) {
+        kidsCache = [targetKid];
+      } else {
+        kidsCache = [];
+        currentKidId = null;
+      }
+    }
+  } else if (kidsCache.length === 0 || force) {
     kidsCache = await listKids();
   }
+
+  const validIds = new Set(kidsCache.map(k => k.id));
+  Object.keys(tasksCache).forEach(kidId => {
+    if (!validIds.has(kidId)) {
+      delete tasksCache[kidId];
+    }
+  });
+  Object.keys(messagesCache).forEach(kidId => {
+    if (!validIds.has(kidId)) {
+      delete messagesCache[kidId];
+    }
+  });
+
   refreshRealtimeListeners();
 }
 
@@ -464,6 +634,9 @@ async function ensureMessagesLoaded(kidId, { force = false } = {}) {
 // רינדור איזור ההורה
 // --------------------------------------------------
 async function renderParentView({ useCacheOnly = false } = {}) {
+  if (kidPrivateMode) return;
+  if (!parentKidsArea) return;
+
   if (!useCacheOnly) {
     await ensureKidsLoaded();
   } else if (kidsCache.length === 0) {
@@ -725,14 +898,23 @@ async function renderParentView({ useCacheOnly = false } = {}) {
     ? 0
     : Math.round((doneTasks / totalTasks) * 100);
 
-  overallProgress.textContent = percent + "%";
-  overallText.innerHTML = `<b>התקדמות כללית</b><br/>${doneTasks}/${totalTasks} משימות הושלמו`;
+  if (overallProgress) overallProgress.textContent = percent + "%";
+  if (overallText) overallText.innerHTML = `<b>התקדמות כללית</b><br/>${doneTasks}/${totalTasks} משימות הושלמו`;
 }
 
 // --------------------------------------------------
 // מסך ילד
 // --------------------------------------------------
 function renderKidTabs() {
+  if (!kidTabsArea || kidNotFoundMode) return;
+
+  if (kidPrivateMode) {
+    kidTabsArea.innerHTML = "";
+    kidTabsArea.classList.add("hidden");
+    return;
+  }
+
+  kidTabsArea.classList.remove("hidden");
   kidTabsArea.innerHTML = "";
 
   kidsCache.forEach(k => {
@@ -749,6 +931,13 @@ function renderKidTabs() {
 }
 
 async function renderKidView(kidId, { useCacheOnly = false } = {}) {
+  if (kidNotFoundMode) return;
+
+  if (!kidUiMounted) {
+    mountKidUi();
+  }
+  if (!kidUiMounted) return;
+
   const kid = kidsCache.find(k => k.id === kidId);
   if (!kid) return;
 
@@ -761,11 +950,17 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
   const kidTasks = sortTasksForDisplay(tasksCache[kidId] || []);
   const msgs     = messagesCache[kidId] || [];
 
-  kidHeaderName.textContent = `היי ${kid.name} ${kid.icon || ""}`;
-  kidHeadlineEl.textContent = kid.childHeadline || "";
-  kidSublineEl.textContent  = kid.childSubline || "";
+  if (kidHeaderName) kidHeaderName.textContent = `היי ${kid.name} ${kid.icon || ""}`;
+  if (kidHeadlineEl) kidHeadlineEl.textContent = kid.childHeadline || "";
+  if (kidSublineEl) kidSublineEl.textContent  = kid.childSubline || "";
 
-  kidTasksArea.innerHTML = "";
+  if (kidTabsArea && !kidPrivateMode) {
+    kidTabsArea.classList.remove("hidden");
+  }
+
+  if (kidTasksArea) {
+    kidTasksArea.innerHTML = "";
+  }
 
   kidTasks.forEach(task => {
     const wrap = document.createElement("div");
@@ -821,7 +1016,9 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
       wrap.appendChild(details);
     }
 
-    kidTasksArea.appendChild(wrap);
+    if (kidTasksArea) {
+      kidTasksArea.appendChild(wrap);
+    }
 
     const pulseSet = kidTaskPulseMap.get(kidId);
     if (pulseSet && pulseSet.has(task.id)) {
@@ -847,6 +1044,8 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
     `;
     maybeShowKidMessageBubble(kidId);
   }
+
+  if (!kidTasksArea) return;
 
   kidTasksArea
     .querySelectorAll("button.child-task-done-btn")
@@ -893,6 +1092,7 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
 // שליחת הודעה מהילד להורה
 // --------------------------------------------------
 window.sendKidMessage = async function sendKidMessage() {
+  if (kidNotFoundMode) return;
   if (!currentKidId) {
     alert("אין ילד נוכחי 🤔");
     return;
@@ -932,6 +1132,7 @@ window.sendKidMessage = async function sendKidMessage() {
 // מודאל משימה חדשה
 // --------------------------------------------------
 window.openAddTaskModal = async function openAddTaskModal() {
+  if (!taskModalBg || kidPrivateMode) return;
   await ensureKidsLoaded();
 
   taskChildSel.innerHTML = "";
@@ -949,6 +1150,7 @@ window.openAddTaskModal = async function openAddTaskModal() {
 };
 
 window.saveNewTask = async function saveNewTask() {
+  if (!taskModalBg || kidPrivateMode) return;
   const kidId = taskChildSel.value;
   const title = taskTitleInp.value.trim();
   const meta  = taskMetaInp.value.trim();
@@ -981,6 +1183,7 @@ window.closeModal = function closeModal(id){
 // מודאל תגובה למשימה
 // --------------------------------------------------
 function openReplyModal(){
+  if (kidPrivateMode || !replyModalBg || !replyTaskName || !replyTextEl) return;
   replyTaskName.textContent = replyCtx.title;
   replyTextEl.value = "";
   replyModalBg.style.display = "flex";
@@ -988,6 +1191,7 @@ function openReplyModal(){
 window.openReplyModal = openReplyModal;
 
 window.saveReply = async function saveReply(){
+  if (kidPrivateMode || !replyModalBg || !replyTextEl) return;
   const text = replyTextEl.value.trim();
   await setParentNote(replyCtx.kidId, replyCtx.taskId, text);
   replyModalBg.style.display = "none";
@@ -1006,12 +1210,14 @@ window.saveReply = async function saveReply(){
 // מודאל ניהול ילדים
 // --------------------------------------------------
 window.openManageKidsModal = async function openManageKidsModal(){
+  if (!manageKidsBg || kidPrivateMode) return;
   await ensureKidsLoaded();
   manageKidsBg.style.display = "flex";
   drawKidsList();
 };
 
 function drawKidsList(){
+  if (!kidsList) return;
   kidsList.innerHTML = "";
 
   kidsCache.forEach(k => {
@@ -1080,6 +1286,7 @@ function drawKidsList(){
 }
 
 window.addKid = async function addKidHandler(){
+  if (kidPrivateMode || !newKidNameInp || !newKidIconInp || !newKidColorInp) return;
   const name  = newKidNameInp.value.trim();
   const icon  = newKidIconInp.value.trim()  || "💛";
   const color = newKidColorInp.value.trim() || "var(--yellow)";
@@ -1111,45 +1318,46 @@ window.addKid = async function addKidHandler(){
 // INIT – מה קורה כשהעמוד נטען
 // --------------------------------------------------
 (async function init(){
-  await ensureKidsLoaded();
+  const params = new URLSearchParams(window.location.search);
+  requestedKidSlug = (params.get("kid") || "").trim();
+  kidPrivateMode = requestedKidSlug !== "";
 
-  const params  = new URLSearchParams(window.location.search);
-  const kidSlug = params.get("kid");
-
-  if (kidSlug) {
-    const viewToggle = document.querySelector(".view-toggle");
-    if (viewToggle) viewToggle.style.display = "none";
-
-    parentCard.style.display      = "none";
-    parentLocked.style.display    = "none";
-    parentContent.style.display   = "none";
-
-    const kid = kidsCache.find(k =>
-      k.slug === kidSlug || k.id === kidSlug
-    );
-
-    if (kid) {
-      currentKidId = kid.id;
-      showView("kid");
-
-      renderKidTabs();
-      await renderKidView(currentKidId);
-      await ensureMessagesLoaded(currentKidId, { force: true });
-
-      return;
-    } else {
-      alert("לא נמצא ילד בשם הזה 🤔");
-    }
+  if (!kidPrivateMode) {
+    mountViewToggle();
+    mountParentUi();
   }
 
+  await ensureKidsLoaded();
+
+  if (kidPrivateMode) {
+    if (kidsCache.length > 0) {
+      currentKidId = kidsCache[0].id;
+      mountKidUi();
+      showView("kid");
+      renderKidTabs();
+      await ensureTasksLoaded(currentKidId);
+      await ensureMessagesLoaded(currentKidId, { force: true });
+      await renderKidView(currentKidId, { useCacheOnly: true });
+    } else {
+      mountKidMissingCard();
+      showView("kid");
+    }
+    return;
+  }
+
+  mountKidUi();
   showView("parent");
-  parentLocked.style.display  = "block";
-  parentContent.style.display = "none";
+  if (parentLocked) parentLocked.style.display  = "block";
+  if (parentContent) parentContent.style.display = "none";
 
   if (kidsCache.length > 0) {
     currentKidId = kidsCache[0].id;
     renderKidTabs();
-    await renderKidView(currentKidId);
+    await ensureTasksLoaded(currentKidId);
     await ensureMessagesLoaded(currentKidId, { force: true });
+    await renderKidView(currentKidId, { useCacheOnly: true });
+  } else {
+    if (kidTasksArea) kidTasksArea.innerHTML = "אין ילדים עדיין 🤔";
+    if (kidMessagesArea) kidMessagesArea.innerHTML = "";
   }
 })();

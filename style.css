@@ -803,3 +803,37 @@ button {
     max-height: 220px;
   }
 }
+.kid-tabs.hidden {
+  display: none;
+}
+
+.kid-missing-card {
+  text-align: center;
+  padding: 32px 18px;
+}
+
+.kid-missing-card .missing-message {
+  background: linear-gradient(160deg, rgba(255, 248, 222, 0.9), rgba(228, 247, 255, 0.9));
+  border-radius: 28px;
+  padding: 32px 20px;
+  box-shadow: 0 6px 18px var(--shadow);
+}
+
+.kid-missing-card .missing-message h2 {
+  font-size: 20px;
+  margin-bottom: 12px;
+  color: var(--text-dark);
+}
+
+.kid-missing-card .missing-message p {
+  font-size: 15px;
+  color: var(--text-mid);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.kid-missing-card .missing-emoji {
+  font-size: 48px;
+  margin-bottom: 14px;
+  display: block;
+}
