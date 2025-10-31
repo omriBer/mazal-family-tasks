@@ -21,10 +21,10 @@ import {
   setKidAvatar
 } from "./db.js";
 
+const AVATAR_COUNT = 16;
+const AVATAR_IDS = Array.from({ length: AVATAR_COUNT }, (_, i) => i + 1);
 const BASE = window.location.pathname.replace(/\/index\.html?$/, "");
-const AVATAR_IDS = Array.from({ length: 10 }, (_, i) => i + 1);
-const AVATAR_SRC = id =>
-  `${BASE}${BASE.endsWith("/") || BASE === "" ? "" : "/"}avatars/avatar-${String(id).padStart(2, "0")}.png`;
+const AVATAR_SRC = id => `${BASE}/avatars/avatar-${String(id).padStart(2, "0")}.png`;
 
 const LEVEL_TITLES = [
   "מתחיל זוהר","ילד כוכב","מאסף אור","שומר המשימות","חייל המז״ל","לוחם הנצנוצים","אלוף השבוע","רודף הכוכבים","מלך הצחוק","מנהל הזמן",
@@ -94,6 +94,10 @@ let newKidColorInp  = null;
 let avatarPickerModal   = null;
 let avatarPickerGrid    = null;
 let avatarPickerCloseBtn = null;
+let avatarSparkLayer    = null;
+let avatarFocusTrapHandler = null;
+let avatarOutsidePointerHandler = null;
+let avatarPreviousFocus = null;
 
 let kidMissingCard  = null;
 
@@ -421,18 +425,15 @@ function showCelebrationPopup(templateId, { title = "", subtitle = "" } = {}) {
 function ensureAvatarPickerElements() {
   if (!avatarPickerModal) {
     avatarPickerModal = document.getElementById("avatarPickerModal");
-    if (avatarPickerModal) {
-      avatarPickerModal.addEventListener("click", event => {
-        if (event.target === avatarPickerModal) {
-          closeAvatarPickerModal();
-        }
-      });
-    }
   }
 
   if (!avatarPickerGrid && avatarPickerModal) {
-    avatarPickerGrid = avatarPickerModal.querySelector("#avatarPickerGrid") ||
+    avatarPickerGrid = document.getElementById("avatarPickerGrid") ||
       avatarPickerModal.querySelector(".avatar-grid");
+  }
+
+  if (!avatarSparkLayer && avatarPickerModal) {
+    avatarSparkLayer = document.getElementById("avatarSparkLayer");
   }
 
   if (!avatarPickerCloseBtn && avatarPickerModal) {
@@ -444,6 +445,16 @@ function ensureAvatarPickerElements() {
   }
 }
 
+function getAvatarModalFocusables() {
+  if (!avatarPickerModal) {
+    return [];
+  }
+  const nodes = avatarPickerModal.querySelectorAll(
+    ".avatar-close-btn, .avatar-item"
+  );
+  return Array.from(nodes).filter(el => !el.disabled);
+}
+
 function handleKidAvatarKey(event) {
   if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
@@ -453,15 +464,38 @@ function handleKidAvatarKey(event) {
 
 function closeAvatarPickerModal() {
   if (!avatarPickerModal) return;
+
   avatarPickerModal.classList.remove("active");
   avatarPickerModal.setAttribute("aria-hidden", "true");
-  if (kidAvatarImg && typeof kidAvatarImg.focus === "function") {
+
+  if (avatarSparkLayer) {
+    avatarSparkLayer.innerHTML = "";
+  }
+
+  if (avatarFocusTrapHandler) {
+    document.removeEventListener("keydown", avatarFocusTrapHandler, true);
+    avatarFocusTrapHandler = null;
+  }
+
+  if (avatarPickerModal && avatarOutsidePointerHandler) {
+    avatarPickerModal.removeEventListener("pointerdown", avatarOutsidePointerHandler);
+    avatarOutsidePointerHandler = null;
+  }
+
+  delete document.body.dataset.lockScroll;
+
+  const focusTarget = kidAvatarImg && typeof kidAvatarImg.focus === "function"
+    ? kidAvatarImg
+    : (avatarPreviousFocus && typeof avatarPreviousFocus.focus === "function" ? avatarPreviousFocus : null);
+  if (focusTarget) {
     try {
-      kidAvatarImg.focus({ preventScroll: true });
+      focusTarget.focus({ preventScroll: true });
     } catch (err) {
-      kidAvatarImg.focus();
+      focusTarget.focus();
     }
   }
+
+  avatarPreviousFocus = null;
 }
 
 function buildAvatarPickerItem(kidAvatarId, avatarId) {
@@ -469,30 +503,34 @@ function buildAvatarPickerItem(kidAvatarId, avatarId) {
   button.type = "button";
   button.className = "avatar-item";
   button.dataset.avatarId = String(avatarId);
+  button.setAttribute("aria-label", `דמות ${avatarId}`);
   const img = document.createElement("img");
   img.src = AVATAR_SRC(avatarId);
-  img.alt = `avatar ${avatarId}`;
+  img.alt = `דמות ${avatarId}`;
+  img.loading = "lazy";
+  img.decoding = "async";
   button.appendChild(img);
   if (Number(kidAvatarId) === avatarId) {
     button.classList.add("selected");
+    button.setAttribute("aria-pressed", "true");
+  } else {
+    button.setAttribute("aria-pressed", "false");
   }
   button.addEventListener("click", () => handleAvatarSelection(button, avatarId));
-  button.addEventListener("keydown", event => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      button.click();
-    }
-  });
   return button;
 }
 
 function burstStarsAt(el) {
   if (!el) return;
-  const rect = el.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
+  const sheet = document.querySelector(".avatar-sheet");
+  const layer = document.getElementById("avatarSparkLayer");
+  if (!sheet || !layer) return;
 
-  // צור 12 חלקיקים קטנים שמתפזרים החוצה
+  const rItem = el.getBoundingClientRect();
+  const rSheet = sheet.getBoundingClientRect();
+  const cx = (rItem.left - rSheet.left) + rItem.width / 2;
+  const cy = (rItem.top - rSheet.top) + rItem.height / 2;
+
   const N = 12;
   for (let i = 0; i < N; i++) {
     const s = document.createElement("div");
@@ -505,7 +543,7 @@ function burstStarsAt(el) {
     s.style.setProperty("--dy", `${dy}px`);
     s.style.left = `${cx - 5}px`;
     s.style.top = `${cy - 5}px`;
-    document.body.appendChild(s);
+    layer.appendChild(s);
     setTimeout(() => s.remove(), 520);
   }
 }
@@ -518,14 +556,90 @@ function openAvatarPickerModal() {
   const kid = kidsCache.find(k => k.id === currentKidId);
   if (!kid) return;
 
-  avatarPickerGrid.innerHTML = "";
+  const currentAvatarId = Number(kid.avatarId);
+  const selectedId = AVATAR_IDS.includes(currentAvatarId)
+    ? currentAvatarId
+    : 1;
+
+  const fragment = document.createDocumentFragment();
   AVATAR_IDS.forEach(id => {
-    const item = buildAvatarPickerItem(kid.avatarId || 1, id);
-    avatarPickerGrid.appendChild(item);
+    fragment.appendChild(buildAvatarPickerItem(selectedId, id));
   });
+
+  avatarPickerGrid.innerHTML = "";
+  avatarPickerGrid.appendChild(fragment);
+
+  if (avatarSparkLayer) {
+    avatarSparkLayer.innerHTML = "";
+  }
+
+  avatarPreviousFocus = document.activeElement;
+  document.body.dataset.lockScroll = "1";
 
   avatarPickerModal.classList.add("active");
   avatarPickerModal.setAttribute("aria-hidden", "false");
+
+  if (avatarFocusTrapHandler) {
+    document.removeEventListener("keydown", avatarFocusTrapHandler, true);
+  }
+
+  avatarFocusTrapHandler = event => {
+    if (!avatarPickerModal || avatarPickerModal.getAttribute("aria-hidden") === "true") {
+      return;
+    }
+    if (event.key === "Tab") {
+      const focusables = getAvatarModalFocusables();
+      if (focusables.length === 0) {
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (!avatarPickerModal.contains(active)) {
+        event.preventDefault();
+        first.focus();
+        return;
+      }
+      if (event.shiftKey) {
+        if (active === first || active === avatarPickerModal) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      closeAvatarPickerModal();
+    }
+  };
+
+  document.addEventListener("keydown", avatarFocusTrapHandler, true);
+
+  if (avatarOutsidePointerHandler) {
+    avatarPickerModal.removeEventListener("pointerdown", avatarOutsidePointerHandler);
+  }
+
+  avatarOutsidePointerHandler = event => {
+    const sheet = avatarPickerModal ? avatarPickerModal.querySelector(".avatar-sheet") : null;
+    if (!sheet) return;
+    if (!sheet.contains(event.target)) {
+      closeAvatarPickerModal();
+    }
+  };
+
+  avatarPickerModal.addEventListener("pointerdown", avatarOutsidePointerHandler);
+
+  const selectedButton = avatarPickerGrid.querySelector(".avatar-item.selected");
+  const focusTarget = selectedButton || getAvatarModalFocusables()[0];
+  if (focusTarget && typeof focusTarget.focus === "function") {
+    try {
+      focusTarget.focus({ preventScroll: true });
+    } catch (err) {
+      focusTarget.focus();
+    }
+  }
 }
 
 async function handleAvatarSelection(button, avatarId) {

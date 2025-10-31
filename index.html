@@ -305,38 +305,10 @@
     <div class="avatar-sheet" role="dialog" aria-modal="true" aria-labelledby="avatarPickerTitle">
       <button type="button" class="avatar-close-btn" id="avatarPickerClose" aria-label="סגור">✕</button>
       <h2 id="avatarPickerTitle">בחרו דמות</h2>
-      <div class="avatar-grid" id="avatarPickerGrid">
-        <div class="avatar-item" data-avatar="1">
-          <img src="avatars/avatar-01.png" alt="avatar 1" />
-        </div>
-        <div class="avatar-item" data-avatar="2">
-          <img src="avatars/avatar-02.png" alt="avatar 2" />
-        </div>
-        <div class="avatar-item" data-avatar="3">
-          <img src="avatars/avatar-03.png" alt="avatar 3" />
-        </div>
-        <div class="avatar-item" data-avatar="4">
-          <img src="avatars/avatar-04.png" alt="avatar 4" />
-        </div>
-        <div class="avatar-item" data-avatar="5">
-          <img src="avatars/avatar-05.png" alt="avatar 5" />
-        </div>
-        <div class="avatar-item" data-avatar="6">
-          <img src="avatars/avatar-06.png" alt="avatar 6" />
-        </div>
-        <div class="avatar-item" data-avatar="7">
-          <img src="avatars/avatar-07.png" alt="avatar 7" />
-        </div>
-        <div class="avatar-item" data-avatar="8">
-          <img src="avatars/avatar-08.png" alt="avatar 8" />
-        </div>
-        <div class="avatar-item" data-avatar="9">
-          <img src="avatars/avatar-09.png" alt="avatar 9" />
-        </div>
-        <div class="avatar-item" data-avatar="10">
-          <img src="avatars/avatar-10.png" alt="avatar 10" />
-        </div>
-      </div>
+      <!-- שכבה לאפקט הניצוצות -->
+      <div id="avatarSparkLayer"></div>
+      <!-- הגריד נבנה דינמית ב-JS ל-16 פריטים -->
+      <div class="avatar-grid" id="avatarPickerGrid"></div>
     </div>
   </div>
 
