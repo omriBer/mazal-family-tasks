@@ -372,7 +372,6 @@ export async function approveTaskAndAwardStar(kidId, taskId) {
 }
 
 export async function setKidAvatar(kidId, avatarId) {
-  if (!kidId) return;
   const ref = doc(db, "kids", kidId);
   await updateDoc(ref, { avatarId });
 }
