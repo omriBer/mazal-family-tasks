@@ -15,8 +15,18 @@ import {
   addParentReply,
   deleteMessage,
   subscribeMessages,
-  subscribeTasks
+  subscribeTasks,
+  subscribeKid,
+  approveTaskAndAwardStar,
+  setKidAvatar
 } from "./db.js";
+
+const BASE = window.location.pathname
+  .replace(/\/index\.html?$/, "")
+  .replace(/\/$/, "");
+const AVATAR_IDS = Array.from({ length: 10 }, (_, i) => i + 1);
+const AVATAR_BASE = BASE ? `${BASE}/avatars` : "avatars";
+const AVATAR_SRC = id => `${AVATAR_BASE}/avatar-${String(id).padStart(2, "0")}.svg`;
 
 // אזורי מונטאז'
 const viewToggleRoot = document.getElementById("viewToggleRoot");
@@ -42,8 +52,10 @@ let overallText     = null;
 
 let kidTabsArea     = null;
 let kidHeaderName   = null;
+let kidAvatarImg    = null;
 let kidHeadlineEl   = null;
 let kidSublineEl    = null;
+let kidStatsLine    = null;
 let kidTasksArea    = null;
 let kidMessagesArea = null;
 
@@ -68,8 +80,12 @@ let kidsList        = null;
 let newKidNameInp   = null;
 let newKidIconInp   = null;
 let newKidColorInp  = null;
+let avatarGridContainer = null;
+let avatarGridInfo      = null;
 
 let kidMissingCard  = null;
+
+let celebrationRoot = document.getElementById("celebrationRoot");
 
 const PARENT_PASSWORD = "9999";
 
@@ -130,6 +146,8 @@ function mountParentModals() {
   newKidNameInp  = document.getElementById("newKidName");
   newKidIconInp  = document.getElementById("newKidIcon");
   newKidColorInp = document.getElementById("newKidColor");
+  avatarGridContainer = document.getElementById("avatarGrid");
+  avatarGridInfo      = document.getElementById("avatarGridInfo");
 
   parentModalsMounted = true;
 }
@@ -168,8 +186,10 @@ function mountKidUi() {
   kidCard         = document.getElementById("kidCard");
   kidTabsArea     = document.getElementById("kidTabsArea");
   kidHeaderName   = document.getElementById("kidHeaderName");
+  kidAvatarImg    = document.getElementById("kidAvatarImg");
   kidHeadlineEl   = document.getElementById("kidHeadline");
   kidSublineEl    = document.getElementById("kidSubline");
+  kidStatsLine    = document.getElementById("kidStatsLine");
   kidTasksArea    = document.getElementById("kidTasksArea");
   kidMessagesArea = document.getElementById("kidMessagesArea");
 
@@ -195,8 +215,10 @@ function mountKidMissingCard() {
 
   kidTabsArea     = null;
   kidHeaderName   = null;
+  kidAvatarImg    = null;
   kidHeadlineEl   = null;
   kidSublineEl    = null;
+  kidStatsLine    = null;
   kidTasksArea    = null;
   kidMessagesArea = null;
 }
@@ -213,12 +235,19 @@ let replyCtx       = { kidId:null, taskId:null, title:"" };
 
 const messageListeners = new Map();
 const taskListeners    = new Map();
+const kidListeners     = new Map();
 const kidMessageQueue  = new Set();
 const parentMessageQueue = new Set();
 const kidTaskPulseMap    = new Map();   // kidId -> Set(taskId)
 const parentTaskPulseMap = new Map();   // kidId -> Set(taskId)
 const initializedMessageRealtime = new Set();
 const initializedTaskRealtime    = new Set();
+const initializedKidRealtime     = new Set();
+const prevStarsByKid             = new Map();
+const prevLevelByKid             = new Map();
+const pendingCelebrations        = new Map(); // kidId -> [{type,...}]
+
+let manageSelectedKidId = null;
 
 let syncStatusTimeout = null;
 let realtimeFailed    = false;
@@ -244,6 +273,7 @@ function showView(which){
     if (kidTabBtn) kidTabBtn.classList.add("active");
     if (parentTabBtn) parentTabBtn.classList.remove("active");
     activeView = "kid";
+    maybeFlushKidCelebrations(currentKidId);
   }
 }
 
@@ -308,6 +338,119 @@ function showFloatingNotice(type = "message", text = "") {
       floatingNoticeWrapper.classList.remove("is-visible");
     }
   }, 3000);
+}
+
+function ensureCelebrationRoot() {
+  if (!celebrationRoot) {
+    celebrationRoot = document.getElementById("celebrationRoot");
+  }
+  if (!celebrationRoot) {
+    celebrationRoot = document.createElement("div");
+    celebrationRoot.id = "celebrationRoot";
+    document.body.appendChild(celebrationRoot);
+  }
+}
+
+function showCelebrationPopup(templateId, { title = "", subtitle = "" } = {}) {
+  ensureCelebrationRoot();
+  if (!celebrationRoot) return;
+
+  const tpl = document.getElementById(templateId);
+  let element = null;
+  if (tpl && tpl.content) {
+    const cloned = tpl.content.firstElementChild;
+    if (cloned) {
+      element = cloned.cloneNode(true);
+    }
+  }
+  if (!element) {
+    element = document.createElement("div");
+    element.className = "celebration-popup";
+  }
+
+  const titleEl = element.querySelector(".title");
+  if (titleEl) {
+    titleEl.textContent = title;
+  } else {
+    const div = document.createElement("div");
+    div.className = "title";
+    div.textContent = title;
+    element.prepend(div);
+  }
+
+  const subtitleEl = element.querySelector(".subtitle");
+  if (subtitleEl) {
+    subtitleEl.textContent = subtitle || "";
+  } else if (subtitle) {
+    const div = document.createElement("div");
+    div.className = "subtitle";
+    div.textContent = subtitle;
+    element.appendChild(div);
+  }
+
+  celebrationRoot.appendChild(element);
+
+  const remove = () => {
+    if (element && element.parentNode === celebrationRoot) {
+      celebrationRoot.removeChild(element);
+    }
+  };
+
+  element.addEventListener("click", remove, { once: true });
+  setTimeout(remove, 3000);
+}
+
+function displayStarCelebration({ stars, kidName }) {
+  const subtitle = typeof stars === "number"
+    ? `עכשיו יש לך ${stars} כוכבים!`
+    : kidName
+      ? `${kidName} קיבל/ה כוכב חדש!`
+      : "";
+  showCelebrationPopup("celebrationStarTemplate", {
+    title: "⭐ קיבלת כוכב!",
+    subtitle
+  });
+}
+
+function displayLevelCelebration({ level, kidName }) {
+  const safeLevel = Number(level) || 1;
+  const title = `🎉 עלית לשלב ${safeLevel}!`;
+  const subtitle = kidName
+    ? `כל הכבוד ${kidName}!`
+    : "איזה הישג מרגש!";
+  showCelebrationPopup("celebrationLevelTemplate", {
+    title,
+    subtitle
+  });
+}
+
+function enqueueCelebration(kidId, celebration) {
+  if (!kidId || !celebration) return;
+  if (!pendingCelebrations.has(kidId)) {
+    pendingCelebrations.set(kidId, []);
+  }
+  pendingCelebrations.get(kidId).push(celebration);
+  maybeFlushKidCelebrations(kidId);
+}
+
+function maybeFlushKidCelebrations(kidId) {
+  if (!kidId) return;
+  if (activeView !== "kid" || kidId !== currentKidId) {
+    return;
+  }
+  const queue = pendingCelebrations.get(kidId);
+  if (!queue || queue.length === 0) {
+    return;
+  }
+  while (queue.length > 0) {
+    const celebration = queue.shift();
+    if (!celebration) continue;
+    if (celebration.type === "star") {
+      displayStarCelebration(celebration);
+    } else if (celebration.type === "level") {
+      displayLevelCelebration(celebration);
+    }
+  }
 }
 
 function sortTasksForDisplay(tasks = []) {
@@ -379,6 +522,34 @@ function getTaskAvailabilityLabel(availableFromDay, nowStartOfDayMs) {
   const date = new Date(numeric);
   const formatted = date.toLocaleDateString("he-IL", { day: "numeric", month: "numeric" });
   return `זמין ב-${formatted}`;
+}
+
+function normalizeKid(kid = {}) {
+  const stars = Number(kid.stars);
+  const level = Number(kid.level);
+  const avatar = Number(kid.avatarId);
+  let avatarId = 1;
+  if (Number.isFinite(avatar) && avatar >= 1) {
+    avatarId = Math.min(Math.max(Math.round(avatar), 1), AVATAR_IDS.length);
+  }
+  return {
+    ...kid,
+    stars: Number.isFinite(stars) ? stars : 0,
+    level: Number.isFinite(level) ? level : 1,
+    avatarId
+  };
+}
+
+function mergeKidRealtimeData(kidId, data = {}) {
+  if (!kidId) return;
+  const idx = kidsCache.findIndex(k => k.id === kidId);
+  const base = idx >= 0 ? kidsCache[idx] : {};
+  const normalized = normalizeKid({ ...base, ...data, id: kidId });
+  if (idx >= 0) {
+    kidsCache[idx] = normalized;
+  } else {
+    kidsCache.push(normalized);
+  }
 }
 
 function getSelectedScopeValue() {
@@ -490,12 +661,22 @@ function removeKidRealtime(kidId) {
   }
   taskListeners.delete(kidId);
 
+  const kidUnsub = kidListeners.get(kidId);
+  if (typeof kidUnsub === "function") {
+    try { kidUnsub(); } catch (err) { console.warn("failed to unsubscribe kid doc", err); }
+  }
+  kidListeners.delete(kidId);
+
   kidMessageQueue.delete(kidId);
   parentMessageQueue.delete(kidId);
   kidTaskPulseMap.delete(kidId);
   parentTaskPulseMap.delete(kidId);
   initializedMessageRealtime.delete(kidId);
   initializedTaskRealtime.delete(kidId);
+  initializedKidRealtime.delete(kidId);
+  prevStarsByKid.delete(kidId);
+  prevLevelByKid.delete(kidId);
+  pendingCelebrations.delete(kidId);
 }
 
 function handleRealtimeFailure(err) {
@@ -589,6 +770,65 @@ function ensureRealtimeForKid(kidId) {
       handleRealtimeFailure(err);
     }
   }
+
+  if (!kidListeners.has(kidId)) {
+    try {
+      const unsubscribe = subscribeKid(kidId, (kidData, error) => {
+        if (error) {
+          handleRealtimeFailure(error);
+          return;
+        }
+        if (!kidData) {
+          return;
+        }
+
+        const normalizedKid = normalizeKid({ id: kidId, ...kidData });
+        const wasInitialized = initializedKidRealtime.has(kidId);
+        const prevStars = prevStarsByKid.has(kidId)
+          ? prevStarsByKid.get(kidId)
+          : normalizedKid.stars;
+        const prevLevel = prevLevelByKid.has(kidId)
+          ? prevLevelByKid.get(kidId)
+          : normalizedKid.level;
+
+        mergeKidRealtimeData(kidId, normalizedKid);
+
+        if (wasInitialized) {
+          if (normalizedKid.stars > prevStars) {
+            enqueueCelebration(kidId, {
+              type: "star",
+              stars: normalizedKid.stars,
+              kidName: normalizedKid.name
+            });
+          }
+          if (normalizedKid.level > prevLevel) {
+            enqueueCelebration(kidId, {
+              type: "level",
+              level: normalizedKid.level,
+              kidName: normalizedKid.name
+            });
+          }
+        }
+
+        prevStarsByKid.set(kidId, normalizedKid.stars);
+        prevLevelByKid.set(kidId, normalizedKid.level);
+        initializedKidRealtime.add(kidId);
+
+        triggerRealtimeRender(kidId);
+
+        if (manageKidsBg && manageKidsBg.style.display === "flex") {
+          drawKidsList();
+        }
+
+        if (kidId === currentKidId) {
+          maybeFlushKidCelebrations(kidId);
+        }
+      });
+      kidListeners.set(kidId, unsubscribe);
+    } catch (err) {
+      handleRealtimeFailure(err);
+    }
+  }
 }
 
 function refreshRealtimeListeners() {
@@ -601,6 +841,12 @@ function refreshRealtimeListeners() {
   });
 
   Array.from(taskListeners.keys()).forEach(kidId => {
+    if (!kidIds.has(kidId)) {
+      removeKidRealtime(kidId);
+    }
+  });
+
+  Array.from(kidListeners.keys()).forEach(kidId => {
     if (!kidIds.has(kidId)) {
       removeKidRealtime(kidId);
     }
@@ -754,6 +1000,21 @@ async function ensureKidsLoaded({ force = false } = {}) {
     kidsCache = await listKids();
   }
 
+  kidsCache = kidsCache.map(normalizeKid);
+
+  kidsCache.forEach(kid => {
+    if (!prevStarsByKid.has(kid.id)) {
+      prevStarsByKid.set(kid.id, kid.stars || 0);
+    }
+    if (!prevLevelByKid.has(kid.id)) {
+      prevLevelByKid.set(kid.id, kid.level || 1);
+    }
+  });
+
+  if (manageSelectedKidId && !kidsCache.some(k => k.id === manageSelectedKidId)) {
+    manageSelectedKidId = kidsCache[0]?.id || null;
+  }
+
   const validIds = new Set(kidsCache.map(k => k.id));
   Object.keys(tasksCache).forEach(kidId => {
     if (!validIds.has(kidId)) {
@@ -846,11 +1107,21 @@ async function renderParentView({ useCacheOnly = false } = {}) {
     const kidBlock = document.createElement("div");
     kidBlock.className = "kid-block";
 
+    const kidAvatarSrc = AVATAR_SRC(kid.avatarId || 1);
+    const kidStars = typeof kid.stars === "number" ? kid.stars : 0;
+    const kidLevel = typeof kid.level === "number" ? kid.level : 1;
+
     const header = document.createElement("div");
     header.className = "kid-header";
     header.innerHTML = `
-      <span class="kid-color-heart" style="color:${kid.color || 'inherit'}">${escapeHtml(kid.icon || "💛")}</span>
-      <span>${escapeHtml(kid.name || "")}</span>
+      <div class="kid-header-main">
+        <span class="kid-color-heart" style="color:${kid.color || 'inherit'}">${escapeHtml(kid.icon || "💛")}</span>
+        <img class="kid-avatar" src="${kidAvatarSrc}" alt="Avatar של ${escapeHtml(kid.name || "הילד/ה")}">
+        <div class="kid-header-text">
+          <span class="kid-header-name">${escapeHtml(kid.name || "")}</span>
+          <span class="kid-star-summary">⭐ ${kidStars} · שלב ${kidLevel}</span>
+        </div>
+      </div>
       ${showMsgHint ? '<span class="new-msg-hint-parent" aria-hidden="true">💬</span>' : ''}
     `;
     kidBlock.appendChild(header);
@@ -877,6 +1148,10 @@ async function renderParentView({ useCacheOnly = false } = {}) {
       }
       const metaHtml = extraPieces.join("");
 
+      const approveButtonHtml = task.done && task.approved !== true
+        ? `<button class="approve-star-btn" data-action="approve-star" data-kid="${kid.id}" data-task="${task.id}">אישור כוכב ⭐</button>`
+        : "";
+
       row.innerHTML = `
         <div class="task-main">
           <div class="task-title">
@@ -894,6 +1169,8 @@ async function renderParentView({ useCacheOnly = false } = {}) {
             data-task="${task.id}"
             aria-label="${task.done ? "בטל סימון משימה" : "סמן משימה כהושלמה"}"
           />
+
+          ${approveButtonHtml}
 
           <button class="task-small-btn blue"
             data-action="reply"
@@ -1017,6 +1294,30 @@ async function renderParentView({ useCacheOnly = false } = {}) {
           replyCtx.taskId   = taskId;
           replyCtx.title    = btn.getAttribute("data-title") || "";
           openReplyModal();
+        }
+      });
+    });
+
+  parentKidsArea
+    .querySelectorAll(".approve-star-btn")
+    .forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const kidId = btn.getAttribute("data-kid");
+        const taskId = btn.getAttribute("data-task");
+        if (!kidId || !taskId) return;
+        btn.disabled = true;
+        try {
+          await approveTaskAndAwardStar(kidId, taskId);
+          tasksCache[kidId] = await listTasks(kidId);
+          await renderParentView();
+          if (kidId === currentKidId) {
+            await renderKidView(kidId);
+          }
+        } catch (err) {
+          console.error("approveTaskAndAwardStar error", err);
+          alert("לא הצלחנו לאשר את הכוכב כרגע 😔");
+        } finally {
+          btn.disabled = false;
         }
       });
     });
@@ -1157,6 +1458,15 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
   }
 
   if (kidHeaderName) kidHeaderName.textContent = `היי ${kid.name} ${kid.icon || ""}`;
+  if (kidAvatarImg) {
+    kidAvatarImg.src = AVATAR_SRC(kid.avatarId || 1);
+    kidAvatarImg.alt = `Avatar של ${kid.name || "הילד/ה"}`;
+  }
+  if (kidStatsLine) {
+    const stars = typeof kid.stars === "number" ? kid.stars : 0;
+    const level = typeof kid.level === "number" ? kid.level : 1;
+    kidStatsLine.textContent = `⭐ ${stars} כוכבים • שלב ${level}`;
+  }
   if (kidHeadlineEl) kidHeadlineEl.textContent = kid.childHeadline || "";
   if (kidSublineEl) kidSublineEl.textContent  = kid.childSubline || "";
 
@@ -1295,6 +1605,8 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
         }
       });
     });
+
+  maybeFlushKidCelebrations(kidId);
 }
 
 // --------------------------------------------------
@@ -1491,15 +1803,26 @@ function drawKidsList(){
   if (!kidsList) return;
   kidsList.innerHTML = "";
 
+  if (!manageSelectedKidId && kidsCache[0]) {
+    manageSelectedKidId = kidsCache[0].id;
+  }
+
   kidsCache.forEach(k => {
     const link = `${location.origin}${location.pathname}?kid=${encodeURIComponent(k.slug || k.id)}`;
 
     const row = document.createElement("div");
-    row.className = "kid-list-row";
+    row.className = "kid-list-row" + (k.id === manageSelectedKidId ? " selected" : "");
+    const avatarSrc = AVATAR_SRC(k.avatarId || 1);
+    const starsText = typeof k.stars === "number" ? k.stars : 0;
+    const levelText = typeof k.level === "number" ? k.level : 1;
     row.innerHTML = `
-      <div class="kid-row-left">
-        <span style="color:${k.color || 'inherit'}">${escapeHtml(k.icon || "💛")}</span>
-        <span>${escapeHtml(k.name || "")}</span>
+      <div class="kid-row-left" data-kid="${k.id}">
+        <span class="kid-color-heart" style="color:${k.color || 'inherit'}">${escapeHtml(k.icon || "💛")}</span>
+        <img class="kid-avatar" src="${avatarSrc}" alt="Avatar של ${escapeHtml(k.name || "הילד/ה")}">
+        <div class="kid-row-text">
+          <span class="kid-row-name">${escapeHtml(k.name || "")}</span>
+          <span class="kid-row-stars">⭐ ${starsText} · שלב ${levelText}</span>
+        </div>
       </div>
       <div class="kid-row-actions">
         <button class="kid-link-btn" data-link="${link}">
@@ -1512,6 +1835,15 @@ function drawKidsList(){
     `;
 
     kidsList.appendChild(row);
+  });
+
+  kidsList.querySelectorAll(".kid-row-left").forEach(left => {
+    left.addEventListener("click", () => {
+      const kidId = left.getAttribute("data-kid");
+      if (!kidId) return;
+      manageSelectedKidId = kidId;
+      drawKidsList();
+    });
   });
 
   kidsList.querySelectorAll(".kid-link-btn").forEach(btn => {
@@ -1537,6 +1869,10 @@ function drawKidsList(){
         currentKidId = kidsCache[0]?.id || null;
       }
 
+      if (manageSelectedKidId === kidId) {
+        manageSelectedKidId = kidsCache[0]?.id || null;
+      }
+
       drawKidsList();
 
       if (unlockedParent) {
@@ -1554,6 +1890,91 @@ function drawKidsList(){
       }
     });
   });
+
+  renderAvatarGrid();
+}
+
+function renderAvatarGrid() {
+  if (!avatarGridContainer) return;
+
+  avatarGridContainer.innerHTML = "";
+
+  if (!kidsCache || kidsCache.length === 0) {
+    if (avatarGridInfo) {
+      avatarGridInfo.textContent = "אין ילדים להצגה כרגע";
+    }
+    return;
+  }
+
+  if (!manageSelectedKidId || !kidsCache.some(k => k.id === manageSelectedKidId)) {
+    manageSelectedKidId = kidsCache[0]?.id || null;
+  }
+
+  const selectedKid = kidsCache.find(k => k.id === manageSelectedKidId);
+  if (!selectedKid) {
+    if (avatarGridInfo) {
+      avatarGridInfo.textContent = "בחרו ילד מהרשימה כדי לבחור לו דמות";
+    }
+    return;
+  }
+
+  if (avatarGridInfo) {
+    avatarGridInfo.textContent = `דמות עבור ${selectedKid.name || "הילד/ה"}`;
+  }
+
+  const tpl = document.getElementById("avatarItemTemplate");
+
+  AVATAR_IDS.forEach(id => {
+    let item = null;
+    if (tpl && tpl.content && tpl.content.firstElementChild) {
+      item = tpl.content.firstElementChild.cloneNode(true);
+    }
+    if (!item) {
+      item = document.createElement("button");
+      item.type = "button";
+      item.className = "avatar-item";
+      const img = document.createElement("img");
+      img.alt = "Avatar";
+      item.appendChild(img);
+    }
+
+    item.classList.add("avatar-item");
+    const imgEl = item.querySelector("img");
+    if (imgEl) {
+      imgEl.src = AVATAR_SRC(id);
+      imgEl.alt = `Avatar ${id}`;
+    }
+
+    if (Number(selectedKid.avatarId) === id) {
+      item.classList.add("selected");
+    } else {
+      item.classList.remove("selected");
+    }
+
+    item.addEventListener("click", async () => {
+      if (!manageSelectedKidId) return;
+      item.disabled = true;
+      try {
+        await setKidAvatar(manageSelectedKidId, id);
+        mergeKidRealtimeData(manageSelectedKidId, { avatarId: id });
+        kidsCache = kidsCache.map(k => k.id === manageSelectedKidId ? { ...k, avatarId: id } : k);
+        if (unlockedParent) {
+          await renderParentView({ useCacheOnly: true });
+        }
+        if (manageSelectedKidId === currentKidId) {
+          await renderKidView(currentKidId, { useCacheOnly: true });
+        }
+        drawKidsList();
+      } catch (err) {
+        console.error("setKidAvatar error", err);
+        alert("לא הצלחנו לעדכן את האווטאר 😔");
+      } finally {
+        item.disabled = false;
+      }
+    });
+
+    avatarGridContainer.appendChild(item);
+  });
 }
 
 window.addKid = async function addKidHandler(){
@@ -1570,6 +1991,7 @@ window.addKid = async function addKidHandler(){
   await addKid({ name, icon, color });
 
   kidsCache = await listKids();
+  manageSelectedKidId = kidsCache[kidsCache.length - 1]?.id || manageSelectedKidId;
   refreshRealtimeListeners();
 
   newKidNameInp.value  = "";

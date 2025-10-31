@@ -6,6 +6,7 @@ import {
   getFirestore,
   collection,
   doc,
+  getDoc,
   getDocs,
   addDoc,
   updateDoc,
@@ -60,9 +61,10 @@ export async function listKids() {
 
   let kids = [];
   snap.forEach(docSnap => {
+    const data = docSnap.data();
     kids.push({
       id: docSnap.id,
-      ...docSnap.data()
+      ...data
     });
   });
 
@@ -92,7 +94,12 @@ export async function addKid({ name, icon="💛", color="var(--yellow)" }) {
     color,
     childHeadline: `היי ${name} 😊`,
     childSubline: "ברוך הבא למז״ל!",
-    order: Date.now()
+    order: Date.now(),
+    stars: 0,
+    level: 1,
+    avatarId: 1,
+    lastStarTs: null,
+    lastLevelUpTs: null
   };
 
   const res = await addDoc(kidsCol, newKid);
@@ -135,7 +142,9 @@ export async function addTask(
     done: false,
     childNote: "",
     parentNote: "",
-    availableFromDay: availableFromDay ?? null
+    availableFromDay: availableFromDay ?? null,
+    approved: false,
+    approvedTs: null
   };
   const res = await addDoc(tasksCol, newTask);
   return res.id;
@@ -279,4 +288,92 @@ export function subscribeTasks(kidId, callback) {
   );
 
   return unsubscribe;
+}
+
+export function subscribeKid(kidId, callback) {
+  if (!kidId || typeof callback !== "function") {
+    return () => {};
+  }
+
+  const ref = doc(db, "kids", kidId);
+
+  const unsubscribe = onSnapshot(
+    ref,
+    snap => {
+      if (!snap.exists()) {
+        callback(null, null);
+        return;
+      }
+      callback({ id: snap.id, ...snap.data() }, null);
+    },
+    error => {
+      console.error("subscribeKid error", error);
+      callback(null, error);
+    }
+  );
+
+  return unsubscribe;
+}
+
+export async function incrementKidStars(kidId, delta) {
+  if (!kidId || typeof delta !== "number" || Number.isNaN(delta)) {
+    return null;
+  }
+
+  const ref = doc(db, "kids", kidId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    return null;
+  }
+
+  const data = snap.data() || {};
+  const currentStars = Number(data.stars) || 0;
+  const currentLevel = Number(data.level) || 1;
+  const newStars = currentStars + delta;
+  const updates = {
+    stars: newStars,
+    lastStarTs: Date.now()
+  };
+
+  const newLevel = Math.floor(Math.max(newStars, 0) / 30) + 1;
+  if (newLevel > currentLevel) {
+    updates.level = newLevel;
+    updates.lastLevelUpTs = Date.now();
+  }
+
+  await updateDoc(ref, updates);
+
+  return { stars: newStars, level: newLevel };
+}
+
+export async function approveTaskAndAwardStar(kidId, taskId) {
+  if (!kidId || !taskId) {
+    return false;
+  }
+
+  const taskRef = doc(db, "kids", kidId, "tasks", taskId);
+  const snap = await getDoc(taskRef);
+  if (!snap.exists()) {
+    return false;
+  }
+
+  const task = snap.data() || {};
+  if (task.approved) {
+    return false;
+  }
+
+  await updateDoc(taskRef, {
+    approved: true,
+    approvedTs: Date.now()
+  });
+
+  await incrementKidStars(kidId, 1);
+  return true;
+}
+
+export async function setKidAvatar(kidId, avatarId) {
+  if (!kidId) return;
+  const normalized = Math.min(Math.max(parseInt(avatarId, 10) || 1, 1), 10);
+  const ref = doc(db, "kids", kidId);
+  await updateDoc(ref, { avatarId: normalized });
 }
