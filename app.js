@@ -486,6 +486,30 @@ function buildAvatarPickerItem(kidAvatarId, avatarId) {
   return button;
 }
 
+function burstStarsAt(el) {
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+
+  // צור 12 חלקיקים קטנים שמתפזרים החוצה
+  const N = 12;
+  for (let i = 0; i < N; i++) {
+    const s = document.createElement("div");
+    s.className = "pick-spark";
+    const angle = (Math.PI * 2 * i) / N;
+    const radius = 24 + Math.random() * 20;
+    const dx = Math.cos(angle) * radius;
+    const dy = Math.sin(angle) * radius;
+    s.style.setProperty("--dx", `${dx}px`);
+    s.style.setProperty("--dy", `${dy}px`);
+    s.style.left = `${cx - 5}px`;
+    s.style.top = `${cy - 5}px`;
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 520);
+  }
+}
+
 function openAvatarPickerModal() {
   if (!currentKidId) return;
   ensureAvatarPickerElements();
@@ -515,6 +539,12 @@ async function handleAvatarSelection(button, avatarId) {
     if (unlockedParent) {
       await renderParentView({ useCacheOnly: true });
     }
+    // באמפ קטן + כוכבים
+    try {
+      button.classList.add("bump");
+      setTimeout(() => button.classList.remove("bump"), 320);
+    } catch (e) {}
+    burstStarsAt(button);
     closeAvatarPickerModal();
   } catch (err) {
     console.error("setKidAvatar error", err);

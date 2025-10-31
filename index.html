@@ -99,6 +99,9 @@
             id="kidAvatarImg"
             src="avatars/avatar-01.png"
             alt="Avatar"
+            role="button"
+            tabindex="0"
+            aria-label="בחרו דמות"
           />
           <div class="kid-header-text">
             <div class="kid-header-name" id="kidHeaderName">היי 🧒</div>
@@ -298,7 +301,7 @@
     </div>
   </template>
 
-  <div id="avatarPickerModal" aria-hidden="true">
+  <div id="avatarPickerModal" class="avatar-picker-modal" aria-hidden="true">
     <div class="avatar-sheet" role="dialog" aria-modal="true" aria-labelledby="avatarPickerTitle">
       <button type="button" class="avatar-close-btn" id="avatarPickerClose" aria-label="סגור">✕</button>
       <h2 id="avatarPickerTitle">בחרו דמות</h2>
