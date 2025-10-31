@@ -335,7 +335,7 @@ export async function incrementKidStars(kidId, delta) {
     lastStarTs: Date.now()
   };
 
-  const newLevel = Math.floor(Math.max(newStars, 0) / 30) + 1;
+  const newLevel = Math.floor(Math.max(newStars, 0) / 5) + 1;
   if (newLevel > currentLevel) {
     updates.level = newLevel;
     updates.lastLevelUpTs = Date.now();
