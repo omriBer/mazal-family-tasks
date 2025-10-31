@@ -906,20 +906,21 @@ button {
   position: fixed;
   inset: 0;
   display: none;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.15);
+  padding-top: 18px;
+  background: rgba(0, 0, 0, 0.12);
   z-index: 9999;
 }
 #avatarPickerModal.active {
   display: flex;
 }
 .avatar-sheet {
+  width: min(420px, 96vw);
   background: #fff;
   border-radius: 18px;
-  padding: 12px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
-  width: min(360px, 92vw);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  padding: 12px 12px 16px;
   position: relative;
   text-align: center;
 }
@@ -929,22 +930,30 @@ button {
 }
 .avatar-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* העיקר: עמודות גמישות שמתמלאות *למטה* */
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
   gap: 10px;
-  justify-items: center;
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .avatar-item {
-  border-radius: 12px;
+  appearance: none;
+  border: 0;
   background: #f7f7fb;
+  border-radius: 14px;
   box-shadow: 0 2px 6px var(--shadow);
-  padding: 6px;
+  padding: 8px;
   cursor: pointer;
-  text-align: center;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
 }
 .avatar-item:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+.avatar-item:active {
+  transform: scale(0.96);
 }
 .avatar-item.selected {
   outline: 3px solid var(--blue);
@@ -952,7 +961,8 @@ button {
 .avatar-item img {
   width: 64px;
   height: 64px;
-  object-fit: cover;
+  display: block;
+  margin: 0 auto;
 }
 .avatar-item:focus-visible {
   outline: 3px solid var(--blue);
@@ -960,6 +970,40 @@ button {
 .avatar-item:disabled {
   opacity: 0.6;
   cursor: wait;
+}
+.avatar-item.bump {
+  animation: avatarBump 0.28s ease;
+}
+@keyframes avatarBump {
+  0% {
+    transform: scale(0.9);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.pick-spark {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  background: radial-gradient(circle, #ffd86b 0%, #ff9f1a 60%, rgba(255, 255, 255, 0) 70%);
+  border-radius: 50%;
+  animation: sparkOut 0.5s ease forwards;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+@keyframes sparkOut {
+  from {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--dx), var(--dy)) scale(0);
+    opacity: 0;
+  }
 }
 .avatar-close-btn {
   position: absolute;
