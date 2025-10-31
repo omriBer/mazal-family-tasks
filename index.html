@@ -92,7 +92,13 @@
   <!-- תבנית כרטיס ילד -->
   <template id="kidViewTemplate">
     <section class="card" id="kidCard" aria-labelledby="kidCardTitle">
-      <header class="brand-header">
+      <header class="brand-header kid-header">
+        <img
+          class="kid-avatar"
+          id="kidAvatarImg"
+          src="avatars/avatar-01.svg"
+          alt="Avatar"
+        />
         <div class="star-icon" aria-hidden="true"></div>
         <div class="brand-text">
           <div class="title" id="kidCardTitle">מז״ל</div>
@@ -102,6 +108,8 @@
           </div>
         </div>
       </header>
+
+      <div class="kid-stats-line" id="kidStatsLine"></div>
 
       <div class="kid-tabs" id="kidTabsArea"></div>
 
@@ -261,6 +269,14 @@
 
         <div id="kidsList"></div>
 
+        <div class="avatar-gallery-section">
+          <div class="avatar-gallery-title">בחרו Avatar</div>
+          <div class="avatar-gallery-info" id="avatarGridInfo">
+            בחרו ילד מהרשימה כדי לבחור לו דמות
+          </div>
+          <div class="avatar-grid" id="avatarGrid"></div>
+        </div>
+
         <label for="newKidName">שם ילד חדש</label>
         <input id="newKidName" placeholder="למשל: גיל" />
 
@@ -274,6 +290,33 @@
       </div>
     </div>
   </template>
+
+  <template id="avatarItemTemplate">
+    <button type="button" class="avatar-item">
+      <img src="avatars/avatar-01.svg" alt="Avatar" />
+    </button>
+  </template>
+
+  <template id="celebrationStarTemplate">
+    <div class="celebration-popup celebration-star" role="alert">
+      <div class="icon" aria-hidden="true">⭐</div>
+      <div class="title">⭐ קיבלת כוכב!</div>
+      <div class="subtitle"></div>
+    </div>
+  </template>
+
+  <template id="celebrationLevelTemplate">
+    <div class="celebration-popup celebration-level" role="alert">
+      <div class="icon" aria-hidden="true">🎉</div>
+      <div class="title"></div>
+      <div class="subtitle"></div>
+      <div class="confetti" aria-hidden="true">
+        <span>✦</span><span>✶</span><span>✹</span>
+      </div>
+    </div>
+  </template>
+
+  <div id="celebrationRoot"></div>
 
   <!-- קוד הלוגיקה (app.js) -->
   <script type="module" src="app.js"></script>

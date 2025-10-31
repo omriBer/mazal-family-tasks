@@ -10,6 +10,7 @@
   --text-mid: #666;
   --bg: linear-gradient(180deg, #fffefc 0%, #f9f8ff 100%);
   --shadow: rgba(0, 0, 0, 0.08);
+  --card-bg: #ffffff;
 }
 
 /* בסיס */
@@ -33,6 +34,35 @@ body {
   padding: 12px;
   box-sizing: border-box;
   position: relative;
+}
+
+.kid-header {
+  gap: 12px;
+}
+.kid-header-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kid-header-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.kid-header-name {
+  font-weight: 600;
+}
+.kid-star-summary {
+  font-size: 13px;
+  color: var(--text-mid);
+}
+
+.kid-stats-line {
+  text-align: center;
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: var(--text-mid);
 }
 
 /* טאבים הורה/ילד */
@@ -225,7 +255,8 @@ button {
 .kid-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 12px;
   font-weight: 600;
   color: var(--text-dark);
   margin-bottom: 4px;
@@ -802,10 +833,32 @@ button {
   display: flex;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
+}
+.kid-row-left .kid-avatar {
+  width: 36px;
+  height: 36px;
+  box-shadow: none;
+}
+.kid-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kid-row-name {
+  font-weight: 600;
+}
+.kid-row-stars {
+  font-size: 12px;
+  color: var(--text-mid);
 }
 .kid-row-actions {
   display: flex;
   gap: 6px;
+}
+.kid-list-row.selected {
+  outline: 2px solid var(--blue);
+  background: rgba(168, 225, 255, 0.25);
 }
 .kid-remove-btn,
 .kid-link-btn {
@@ -823,6 +876,135 @@ button {
 }
 .kid-link-btn {
   background: var(--blue);
+}
+
+.avatar-gallery-section {
+  margin: 16px 0 0;
+}
+.avatar-gallery-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.avatar-gallery-info {
+  font-size: 13px;
+  color: var(--text-mid);
+  margin-bottom: 8px;
+}
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+.avatar-item {
+  border-radius: 12px;
+  padding: 8px;
+  background: var(--card-bg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.15s ease;
+  border: 0;
+}
+.avatar-item:hover {
+  transform: scale(1.05);
+}
+.avatar-item.selected {
+  outline: 3px solid var(--blue);
+}
+.avatar-item img {
+  width: 64px;
+  height: 64px;
+}
+.avatar-item:focus-visible {
+  outline: 3px solid var(--blue);
+}
+.avatar-item:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.kid-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.kid-header .kid-avatar {
+  flex-shrink: 0;
+}
+.approve-star-btn {
+  background: linear-gradient(180deg, #ffeaa7, #f6d365);
+  border: 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  color: #5c4200;
+}
+#celebrationRoot {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 24px 12px;
+  gap: 12px;
+}
+.celebration-popup {
+  pointer-events: auto;
+  max-width: 320px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  animation: pop-in 0.22s ease-out;
+  text-align: center;
+}
+.celebration-popup .title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.celebration-popup .subtitle {
+  font-size: 14px;
+  opacity: 0.75;
+}
+.celebration-star .icon {
+  font-size: 48px;
+}
+.celebration-level .icon {
+  font-size: 56px;
+}
+.confetti {
+  margin-top: 12px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  font-size: 18px;
+  color: #ffb6c1;
+}
+.confetti span:nth-child(2) {
+  color: #a8e1ff;
+}
+.confetti span:nth-child(3) {
+  color: #ffd0a8;
+}
+
+@keyframes pop-in {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* פוטר */
