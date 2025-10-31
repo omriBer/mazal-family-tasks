@@ -36,33 +36,40 @@ body {
   position: relative;
 }
 
-.kid-header {
+.brand-header.kid-header {
+  justify-content: flex-start;
+  align-items: center;
   gap: 12px;
 }
 .kid-header-main {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 .kid-header-text {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: 4px;
 }
 .kid-header-name {
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 800;
 }
-.kid-star-summary {
-  font-size: 13px;
-  color: var(--text-mid);
-}
-
 .kid-stats-line {
-  text-align: center;
-  font-size: 14px;
-  margin-bottom: 12px;
-  color: var(--text-mid);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+.level-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 6px var(--shadow);
+  font-weight: 700;
 }
 
 /* טאבים הורה/ילד */
@@ -839,6 +846,7 @@ button {
   width: 36px;
   height: 36px;
   box-shadow: none;
+  cursor: default;
 }
 .kid-row-text {
   display: flex;
@@ -878,35 +886,65 @@ button {
   background: var(--blue);
 }
 
-.avatar-gallery-section {
-  margin: 16px 0 0;
+.kid-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 2px 6px var(--shadow);
+  cursor: pointer;
+  transition: transform 0.15s ease;
 }
-.avatar-gallery-title {
-  font-weight: 600;
-  margin-bottom: 4px;
+.kid-avatar:hover {
+  transform: scale(1.03);
 }
-.avatar-gallery-info {
-  font-size: 13px;
-  color: var(--text-mid);
-  margin-bottom: 8px;
+.kid-header .kid-avatar {
+  flex-shrink: 0;
+}
+
+#avatarPickerModal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+}
+#avatarPickerModal.active {
+  display: flex;
+}
+.avatar-sheet {
+  background: #fff;
+  border-radius: 18px;
+  padding: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  width: min(360px, 92vw);
+  position: relative;
+  text-align: center;
+}
+.avatar-sheet h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
 }
 .avatar-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
+  gap: 10px;
+  justify-items: center;
 }
 .avatar-item {
   border-radius: 12px;
-  padding: 8px;
-  background: var(--card-bg);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  background: #f7f7fb;
+  box-shadow: 0 2px 6px var(--shadow);
+  padding: 6px;
   cursor: pointer;
   text-align: center;
-  transition: transform 0.15s ease;
-  border: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .avatar-item:hover {
-  transform: scale(1.05);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
 }
 .avatar-item.selected {
   outline: 3px solid var(--blue);
@@ -914,6 +952,7 @@ button {
 .avatar-item img {
   width: 64px;
   height: 64px;
+  object-fit: cover;
 }
 .avatar-item:focus-visible {
   outline: 3px solid var(--blue);
@@ -922,15 +961,18 @@ button {
   opacity: 0.6;
   cursor: wait;
 }
-.kid-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+.avatar-close-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  border: none;
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-mid);
 }
-.kid-header .kid-avatar {
-  flex-shrink: 0;
+.avatar-close-btn:hover {
+  color: var(--text-dark);
 }
 .approve-star-btn {
   background: linear-gradient(180deg, #ffeaa7, #f6d365);

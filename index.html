@@ -91,30 +91,26 @@
 
   <!-- תבנית כרטיס ילד -->
   <template id="kidViewTemplate">
-    <section class="card" id="kidCard" aria-labelledby="kidCardTitle">
+    <section class="card" id="kidCard" aria-labelledby="kidHeaderName">
       <header class="brand-header kid-header">
-        <img
-          class="kid-avatar"
-          id="kidAvatarImg"
-          src="avatars/avatar-01.svg"
-          alt="Avatar"
-        />
-        <div class="star-icon" aria-hidden="true"></div>
-        <div class="brand-text">
-          <div class="title" id="kidCardTitle">מז״ל</div>
-          <div class="subtitle">
-            <span id="kidHeaderName">היי 🧒</span><br />
-            אלו המשימות שלך להיום
+        <div class="kid-header-main">
+          <img
+            class="kid-avatar"
+            id="kidAvatarImg"
+            src="avatars/avatar-01.png"
+            alt="Avatar"
+          />
+          <div class="kid-header-text">
+            <div class="kid-header-name" id="kidHeaderName">היי 🧒</div>
+            <div class="kid-stats-line" id="kidStatsLine"></div>
           </div>
         </div>
       </header>
 
-      <div class="kid-stats-line" id="kidStatsLine"></div>
-
       <div class="kid-tabs" id="kidTabsArea"></div>
 
-      <div class="kid-top-line" id="kidHeadline">...</div>
-      <div class="kid-sub-line" id="kidSubline">...</div>
+      <div class="kid-top-line" id="kidHeadline"></div>
+      <div class="kid-sub-line" id="kidSubline"></div>
 
       <div id="kidTasksArea"></div>
 
@@ -269,14 +265,6 @@
 
         <div id="kidsList"></div>
 
-        <div class="avatar-gallery-section">
-          <div class="avatar-gallery-title">בחרו Avatar</div>
-          <div class="avatar-gallery-info" id="avatarGridInfo">
-            בחרו ילד מהרשימה כדי לבחור לו דמות
-          </div>
-          <div class="avatar-grid" id="avatarGrid"></div>
-        </div>
-
         <label for="newKidName">שם ילד חדש</label>
         <input id="newKidName" placeholder="למשל: גיל" />
 
@@ -289,12 +277,6 @@
         <button class="manage-kids-btn" onclick="addKid()">הוסף ילד</button>
       </div>
     </div>
-  </template>
-
-  <template id="avatarItemTemplate">
-    <button type="button" class="avatar-item">
-      <img src="avatars/avatar-01.svg" alt="Avatar" />
-    </button>
   </template>
 
   <template id="celebrationStarTemplate">
@@ -315,6 +297,45 @@
       </div>
     </div>
   </template>
+
+  <div id="avatarPickerModal" aria-hidden="true">
+    <div class="avatar-sheet" role="dialog" aria-modal="true" aria-labelledby="avatarPickerTitle">
+      <button type="button" class="avatar-close-btn" id="avatarPickerClose" aria-label="סגור">✕</button>
+      <h2 id="avatarPickerTitle">בחרו דמות</h2>
+      <div class="avatar-grid" id="avatarPickerGrid">
+        <div class="avatar-item" data-avatar="1">
+          <img src="avatars/avatar-01.png" alt="avatar 1" />
+        </div>
+        <div class="avatar-item" data-avatar="2">
+          <img src="avatars/avatar-02.png" alt="avatar 2" />
+        </div>
+        <div class="avatar-item" data-avatar="3">
+          <img src="avatars/avatar-03.png" alt="avatar 3" />
+        </div>
+        <div class="avatar-item" data-avatar="4">
+          <img src="avatars/avatar-04.png" alt="avatar 4" />
+        </div>
+        <div class="avatar-item" data-avatar="5">
+          <img src="avatars/avatar-05.png" alt="avatar 5" />
+        </div>
+        <div class="avatar-item" data-avatar="6">
+          <img src="avatars/avatar-06.png" alt="avatar 6" />
+        </div>
+        <div class="avatar-item" data-avatar="7">
+          <img src="avatars/avatar-07.png" alt="avatar 7" />
+        </div>
+        <div class="avatar-item" data-avatar="8">
+          <img src="avatars/avatar-08.png" alt="avatar 8" />
+        </div>
+        <div class="avatar-item" data-avatar="9">
+          <img src="avatars/avatar-09.png" alt="avatar 9" />
+        </div>
+        <div class="avatar-item" data-avatar="10">
+          <img src="avatars/avatar-10.png" alt="avatar 10" />
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="celebrationRoot"></div>
 

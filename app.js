@@ -21,12 +21,23 @@ import {
   setKidAvatar
 } from "./db.js";
 
-const BASE = window.location.pathname
-  .replace(/\/index\.html?$/, "")
-  .replace(/\/$/, "");
+const BASE = window.location.pathname.replace(/\/index\.html?$/, "");
 const AVATAR_IDS = Array.from({ length: 10 }, (_, i) => i + 1);
-const AVATAR_BASE = BASE ? `${BASE}/avatars` : "avatars";
-const AVATAR_SRC = id => `${AVATAR_BASE}/avatar-${String(id).padStart(2, "0")}.svg`;
+const AVATAR_SRC = id =>
+  `${BASE}${BASE.endsWith("/") || BASE === "" ? "" : "/"}avatars/avatar-${String(id).padStart(2, "0")}.png`;
+
+const LEVEL_TITLES = [
+  "מתחיל זוהר","ילד כוכב","מאסף אור","שומר המשימות","חייל המז״ל","לוחם הנצנוצים","אלוף השבוע","רודף הכוכבים","מלך הצחוק","מנהל הזמן",
+  "שליט הלבבות","נסיך המשימות","אדון האור","גיבור החדר","מכין־שיעורים על","קוסם הניקיון","מגה כוכב","קפטן אחריות","פיית המז״ל","סגן אלוף הבית",
+  "נושא הכוכב","נסיך השלמות","ילד־על חיובי","לוחם הטוב","מאסטר מז״ל","מנהל־יום מנצנץ","סגן אלוף הכוכבים","אלוף הכוכבים","שגריר המז״ל","מנהיג האור",
+  "שליט הזמן","דרקון המשימות","מגה־גיבור","אדון ההפתעות","מאיר־הבית","קוסם הבית","פיית האחריות","שגריר הטוב","סופר־כוכב","קוסם העל",
+  "מאמן מז״ל","נסיך־הקסם","גיבור העליון","לוחם השלום","מלך המשימות","סגן העולם","אלוף העולם","על־אלוף הבית","גיבור־היקום","סופרסטאר עולמי"
+];
+const getLevelTitle = level => {
+  const numeric = Number(level) || 1;
+  const index = Math.min(Math.max(numeric, 1) - 1, LEVEL_TITLES.length - 1);
+  return LEVEL_TITLES[index];
+};
 
 // אזורי מונטאז'
 const viewToggleRoot = document.getElementById("viewToggleRoot");
@@ -80,8 +91,9 @@ let kidsList        = null;
 let newKidNameInp   = null;
 let newKidIconInp   = null;
 let newKidColorInp  = null;
-let avatarGridContainer = null;
-let avatarGridInfo      = null;
+let avatarPickerModal   = null;
+let avatarPickerGrid    = null;
+let avatarPickerCloseBtn = null;
 
 let kidMissingCard  = null;
 
@@ -146,9 +158,6 @@ function mountParentModals() {
   newKidNameInp  = document.getElementById("newKidName");
   newKidIconInp  = document.getElementById("newKidIcon");
   newKidColorInp = document.getElementById("newKidColor");
-  avatarGridContainer = document.getElementById("avatarGrid");
-  avatarGridInfo      = document.getElementById("avatarGridInfo");
-
   parentModalsMounted = true;
 }
 
@@ -192,6 +201,15 @@ function mountKidUi() {
   kidStatsLine    = document.getElementById("kidStatsLine");
   kidTasksArea    = document.getElementById("kidTasksArea");
   kidMessagesArea = document.getElementById("kidMessagesArea");
+
+  if (kidAvatarImg) {
+    kidAvatarImg.addEventListener("click", openAvatarPickerModal);
+    kidAvatarImg.addEventListener("keydown", handleKidAvatarKey);
+    kidAvatarImg.setAttribute("role", "button");
+    kidAvatarImg.setAttribute("tabindex", "0");
+    kidAvatarImg.setAttribute("aria-label", "בחרו דמות");
+  }
+  ensureAvatarPickerElements();
 
   kidUiMounted    = true;
   kidNotFoundMode = false;
@@ -398,6 +416,112 @@ function showCelebrationPopup(templateId, { title = "", subtitle = "" } = {}) {
 
   element.addEventListener("click", remove, { once: true });
   setTimeout(remove, 3000);
+}
+
+function ensureAvatarPickerElements() {
+  if (!avatarPickerModal) {
+    avatarPickerModal = document.getElementById("avatarPickerModal");
+    if (avatarPickerModal) {
+      avatarPickerModal.addEventListener("click", event => {
+        if (event.target === avatarPickerModal) {
+          closeAvatarPickerModal();
+        }
+      });
+    }
+  }
+
+  if (!avatarPickerGrid && avatarPickerModal) {
+    avatarPickerGrid = avatarPickerModal.querySelector("#avatarPickerGrid") ||
+      avatarPickerModal.querySelector(".avatar-grid");
+  }
+
+  if (!avatarPickerCloseBtn && avatarPickerModal) {
+    avatarPickerCloseBtn = document.getElementById("avatarPickerClose") ||
+      avatarPickerModal.querySelector(".avatar-close-btn");
+    if (avatarPickerCloseBtn) {
+      avatarPickerCloseBtn.addEventListener("click", closeAvatarPickerModal);
+    }
+  }
+}
+
+function handleKidAvatarKey(event) {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    openAvatarPickerModal();
+  }
+}
+
+function closeAvatarPickerModal() {
+  if (!avatarPickerModal) return;
+  avatarPickerModal.classList.remove("active");
+  avatarPickerModal.setAttribute("aria-hidden", "true");
+  if (kidAvatarImg && typeof kidAvatarImg.focus === "function") {
+    try {
+      kidAvatarImg.focus({ preventScroll: true });
+    } catch (err) {
+      kidAvatarImg.focus();
+    }
+  }
+}
+
+function buildAvatarPickerItem(kidAvatarId, avatarId) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "avatar-item";
+  button.dataset.avatarId = String(avatarId);
+  const img = document.createElement("img");
+  img.src = AVATAR_SRC(avatarId);
+  img.alt = `avatar ${avatarId}`;
+  button.appendChild(img);
+  if (Number(kidAvatarId) === avatarId) {
+    button.classList.add("selected");
+  }
+  button.addEventListener("click", () => handleAvatarSelection(button, avatarId));
+  button.addEventListener("keydown", event => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      button.click();
+    }
+  });
+  return button;
+}
+
+function openAvatarPickerModal() {
+  if (!currentKidId) return;
+  ensureAvatarPickerElements();
+  if (!avatarPickerModal || !avatarPickerGrid) return;
+
+  const kid = kidsCache.find(k => k.id === currentKidId);
+  if (!kid) return;
+
+  avatarPickerGrid.innerHTML = "";
+  AVATAR_IDS.forEach(id => {
+    const item = buildAvatarPickerItem(kid.avatarId || 1, id);
+    avatarPickerGrid.appendChild(item);
+  });
+
+  avatarPickerModal.classList.add("active");
+  avatarPickerModal.setAttribute("aria-hidden", "false");
+}
+
+async function handleAvatarSelection(button, avatarId) {
+  if (!currentKidId) return;
+  button.disabled = true;
+  try {
+    await setKidAvatar(currentKidId, avatarId);
+    mergeKidRealtimeData(currentKidId, { avatarId });
+    kidsCache = kidsCache.map(k => (k.id === currentKidId ? { ...k, avatarId } : k));
+    await renderKidView(currentKidId, { useCacheOnly: true });
+    if (unlockedParent) {
+      await renderParentView({ useCacheOnly: true });
+    }
+    closeAvatarPickerModal();
+  } catch (err) {
+    console.error("setKidAvatar error", err);
+    alert("לא הצלחנו לעדכן את האווטאר 😔");
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function displayStarCelebration({ stars, kidName }) {
@@ -1457,15 +1581,19 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
     showFloatingNotice("task", "יש לך משימה חדשה!");
   }
 
-  if (kidHeaderName) kidHeaderName.textContent = `היי ${kid.name} ${kid.icon || ""}`;
+  if (kidHeaderName) {
+    const displayName = kid.name ? kid.name : "🧒";
+    kidHeaderName.textContent = `היי ${displayName}`.trim();
+  }
   if (kidAvatarImg) {
     kidAvatarImg.src = AVATAR_SRC(kid.avatarId || 1);
-    kidAvatarImg.alt = `Avatar של ${kid.name || "הילד/ה"}`;
+    kidAvatarImg.alt = "Avatar";
   }
   if (kidStatsLine) {
     const stars = typeof kid.stars === "number" ? kid.stars : 0;
     const level = typeof kid.level === "number" ? kid.level : 1;
-    kidStatsLine.textContent = `⭐ ${stars} כוכבים • שלב ${level}`;
+    const levelTitle = getLevelTitle(level);
+    kidStatsLine.innerHTML = `<span class="level-chip">${escapeHtml(levelTitle)} — ⭐ ${stars}</span>`;
   }
   if (kidHeadlineEl) kidHeadlineEl.textContent = kid.childHeadline || "";
   if (kidSublineEl) kidSublineEl.textContent  = kid.childSubline || "";
@@ -1889,91 +2017,6 @@ function drawKidsList(){
         kidHeaderName.textContent = "אין ילדים כרגע 🙃";
       }
     });
-  });
-
-  renderAvatarGrid();
-}
-
-function renderAvatarGrid() {
-  if (!avatarGridContainer) return;
-
-  avatarGridContainer.innerHTML = "";
-
-  if (!kidsCache || kidsCache.length === 0) {
-    if (avatarGridInfo) {
-      avatarGridInfo.textContent = "אין ילדים להצגה כרגע";
-    }
-    return;
-  }
-
-  if (!manageSelectedKidId || !kidsCache.some(k => k.id === manageSelectedKidId)) {
-    manageSelectedKidId = kidsCache[0]?.id || null;
-  }
-
-  const selectedKid = kidsCache.find(k => k.id === manageSelectedKidId);
-  if (!selectedKid) {
-    if (avatarGridInfo) {
-      avatarGridInfo.textContent = "בחרו ילד מהרשימה כדי לבחור לו דמות";
-    }
-    return;
-  }
-
-  if (avatarGridInfo) {
-    avatarGridInfo.textContent = `דמות עבור ${selectedKid.name || "הילד/ה"}`;
-  }
-
-  const tpl = document.getElementById("avatarItemTemplate");
-
-  AVATAR_IDS.forEach(id => {
-    let item = null;
-    if (tpl && tpl.content && tpl.content.firstElementChild) {
-      item = tpl.content.firstElementChild.cloneNode(true);
-    }
-    if (!item) {
-      item = document.createElement("button");
-      item.type = "button";
-      item.className = "avatar-item";
-      const img = document.createElement("img");
-      img.alt = "Avatar";
-      item.appendChild(img);
-    }
-
-    item.classList.add("avatar-item");
-    const imgEl = item.querySelector("img");
-    if (imgEl) {
-      imgEl.src = AVATAR_SRC(id);
-      imgEl.alt = `Avatar ${id}`;
-    }
-
-    if (Number(selectedKid.avatarId) === id) {
-      item.classList.add("selected");
-    } else {
-      item.classList.remove("selected");
-    }
-
-    item.addEventListener("click", async () => {
-      if (!manageSelectedKidId) return;
-      item.disabled = true;
-      try {
-        await setKidAvatar(manageSelectedKidId, id);
-        mergeKidRealtimeData(manageSelectedKidId, { avatarId: id });
-        kidsCache = kidsCache.map(k => k.id === manageSelectedKidId ? { ...k, avatarId: id } : k);
-        if (unlockedParent) {
-          await renderParentView({ useCacheOnly: true });
-        }
-        if (manageSelectedKidId === currentKidId) {
-          await renderKidView(currentKidId, { useCacheOnly: true });
-        }
-        drawKidsList();
-      } catch (err) {
-        console.error("setKidAvatar error", err);
-        alert("לא הצלחנו לעדכן את האווטאר 😔");
-      } finally {
-        item.disabled = false;
-      }
-    });
-
-    avatarGridContainer.appendChild(item);
   });
 }
 

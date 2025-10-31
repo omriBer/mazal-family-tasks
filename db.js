@@ -373,7 +373,6 @@ export async function approveTaskAndAwardStar(kidId, taskId) {
 
 export async function setKidAvatar(kidId, avatarId) {
   if (!kidId) return;
-  const normalized = Math.min(Math.max(parseInt(avatarId, 10) || 1, 1), 10);
   const ref = doc(db, "kids", kidId);
-  await updateDoc(ref, { avatarId: normalized });
+  await updateDoc(ref, { avatarId });
 }
