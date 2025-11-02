@@ -89,9 +89,20 @@ const LEVEL_TITLES = [
 ];
 const getLevelTitle = level => {
   const numeric = Number(level) || 1;
-  const index = Math.min(Math.max(numeric, 1) - 1, LEVEL_TITLES.length - 1);
-  return LEVEL_TITLES[index];
+  if (numeric >= 1 && numeric <= LEVEL_TITLES.length) {
+    const index = numeric - 1;
+    const title = LEVEL_TITLES[index];
+    if (title) {
+      return title;
+    }
+  }
+  return `שלב ${numeric}`;
 };
+
+const STARS_PER_LEVEL = 5;
+const computeLevel = (stars = 0) => Math.floor(Math.max(stars, 0) / STARS_PER_LEVEL) + 1;
+const starsIntoLevel = (stars = 0) => Math.max(stars, 0) % STARS_PER_LEVEL;
+const starsToNextLevel = (stars = 0) => STARS_PER_LEVEL - starsIntoLevel(stars);
 
 // אזורי מונטאז'
 const viewToggleRoot = document.getElementById("viewToggleRoot");
@@ -115,14 +126,22 @@ let parentKidsArea  = null;
 let overallProgress = null;
 let overallText     = null;
 
-let kidTabsArea     = null;
-let kidHeaderName   = null;
-let kidAvatarImg    = null;
-let kidHeadlineEl   = null;
-let kidSublineEl    = null;
-let kidStatsLine    = null;
-let kidTasksArea    = null;
-let kidMessagesArea = null;
+let kidTabsArea          = null;
+let kidHeaderName        = null;
+let kidAvatarImg         = null;
+let kidLevelTitleEl      = null;
+let kidStarsSummaryEl    = null;
+let kidLevelProgressBar  = null;
+let kidLevelProgressFill = null;
+let kidLevelProgressText = null;
+let kidRankLine          = null;
+let kidMessagesFab       = null;
+let kidMessagesBadge     = null;
+let kidAvatarGalleryBtn  = null;
+let kidHeadlineEl        = null;
+let kidSublineEl         = null;
+let kidTasksArea         = null;
+let kidMessagesArea      = null;
 
 let taskModalBg     = null;
 let taskChildSel    = null;
@@ -254,11 +273,23 @@ function mountKidUi() {
   kidTabsArea     = document.getElementById("kidTabsArea");
   kidHeaderName   = document.getElementById("kidHeaderName");
   kidAvatarImg    = document.getElementById("kidAvatarImg");
+  kidLevelTitleEl      = document.getElementById("kidLevelTitle");
+  kidStarsSummaryEl    = document.getElementById("kidStarsSummary");
+  kidLevelProgressFill = document.getElementById("kidLevelProgressFill");
+  kidLevelProgressText = document.getElementById("kidLevelProgressText");
+  kidRankLine          = document.getElementById("kidRankLine");
+  kidMessagesFab       = document.getElementById("kidMessagesFab");
+  kidMessagesBadge     = document.getElementById("kidMessagesBadge");
+  kidAvatarGalleryBtn  = document.getElementById("kidAvatarGalleryBtn");
   kidHeadlineEl   = document.getElementById("kidHeadline");
   kidSublineEl    = document.getElementById("kidSubline");
-  kidStatsLine    = document.getElementById("kidStatsLine");
   kidTasksArea    = document.getElementById("kidTasksArea");
   kidMessagesArea = document.getElementById("kidMessagesArea");
+  kidLevelProgressBar  = kidCard ? kidCard.querySelector(".level-progress-bar") : null;
+
+  if (kidMessagesBadge) {
+    kidMessagesBadge.textContent = "";
+  }
 
   if (kidAvatarImg) {
     kidAvatarImg.addEventListener("click", openAvatarPickerModal);
@@ -266,6 +297,16 @@ function mountKidUi() {
     kidAvatarImg.setAttribute("role", "button");
     kidAvatarImg.setAttribute("tabindex", "0");
     kidAvatarImg.setAttribute("aria-label", "בחרו דמות");
+  }
+  if (kidAvatarGalleryBtn) {
+    kidAvatarGalleryBtn.addEventListener("click", openAvatarPickerModal);
+  }
+  if (kidMessagesFab) {
+    kidMessagesFab.addEventListener("click", () => {
+      if (currentKidId) {
+        openMessagesModal(currentKidId);
+      }
+    });
   }
   ensureAvatarPickerElements();
 
@@ -286,15 +327,25 @@ function mountKidMissingCard() {
   kidCard        = document.getElementById("kidMissingCard");
   kidMissingCard = kidCard;
 
+  closeMessagesModal();
+
   kidUiMounted    = false;
   kidNotFoundMode = true;
 
   kidTabsArea     = null;
   kidHeaderName   = null;
   kidAvatarImg    = null;
+  kidLevelTitleEl = null;
+  kidStarsSummaryEl = null;
+  kidLevelProgressBar = null;
+  kidLevelProgressFill = null;
+  kidLevelProgressText = null;
+  kidRankLine    = null;
+  kidMessagesFab = null;
+  kidMessagesBadge = null;
+  kidAvatarGalleryBtn = null;
   kidHeadlineEl   = null;
   kidSublineEl    = null;
-  kidStatsLine    = null;
   kidTasksArea    = null;
   kidMessagesArea = null;
 }
@@ -322,6 +373,7 @@ const initializedKidRealtime     = new Set();
 const prevStarsByKid             = new Map();
 const prevLevelByKid             = new Map();
 const pendingCelebrations        = new Map(); // kidId -> [{type,...}]
+const kidUnreadCounts            = new Map(); // kidId -> number of unread parent messages
 
 let manageSelectedKidId = null;
 
@@ -333,17 +385,22 @@ let floatingNoticeWrapper = null;
 let floatingNoticeBubble  = null;
 let floatingNoticeTimer   = null;
 
+let activeMessagesModal    = null;
+let messagesModalFocusReturn = null;
+
 // --------------------------------------------------
 // עזרי UI
 // --------------------------------------------------
 function showView(which){
   if(which === "parent"){
+    closeMessagesModal();
     if (parentCard) parentCard.classList.add("active");
     if (kidCard) kidCard.classList.remove("active");
     if (parentTabBtn) parentTabBtn.classList.add("active");
     if (kidTabBtn) kidTabBtn.classList.remove("active");
     activeView = "parent";
   } else {
+    closeMessagesModal();
     if (kidCard) kidCard.classList.add("active");
     if (parentCard) parentCard.classList.remove("active");
     if (kidTabBtn) kidTabBtn.classList.add("active");
@@ -999,6 +1056,7 @@ function removeKidRealtime(kidId) {
   prevStarsByKid.delete(kidId);
   prevLevelByKid.delete(kidId);
   pendingCelebrations.delete(kidId);
+  kidUnreadCounts.delete(kidId);
 }
 
 function handleRealtimeFailure(err) {
@@ -1034,10 +1092,16 @@ function ensureRealtimeForKid(kidId) {
 
         messagesCache[kidId] = messages;
 
+        let parentNewCount = 0;
         if (wasInitialized) {
           const newMessages = messages.filter(m => !prevIds.has(m.id));
-          if (newMessages.some(m => m.from === "parent")) {
+          parentNewCount = newMessages.filter(m => m.from === "parent").length;
+          if (parentNewCount > 0) {
             kidMessageQueue.add(kidId);
+            if (!activeMessagesModal || activeMessagesModal.kidId !== kidId) {
+              const prevCount = kidUnreadCounts.get(kidId) || 0;
+              kidUnreadCounts.set(kidId, prevCount + parentNewCount);
+            }
           }
           if (newMessages.some(m => m.from === "child")) {
             parentMessageQueue.add(kidId);
@@ -1050,6 +1114,15 @@ function ensureRealtimeForKid(kidId) {
         }
 
         initializedMessageRealtime.add(kidId);
+
+        if (activeMessagesModal && activeMessagesModal.kidId === kidId) {
+          refreshActiveMessagesModal();
+          if (parentNewCount > 0) {
+            markKidMessagesRead(kidId);
+          }
+        }
+
+        updateKidMessagesFabState(kidId);
 
         triggerRealtimeRender(kidId);
       });
@@ -1191,6 +1264,7 @@ function maybeShowKidMessageBubble(kidId) {
     kidMessageQueue.delete(kidId);
     showKidNewMessageBubble(kidId);
   }
+  updateKidMessagesFabState(kidId);
 }
 
 function shouldShowParentMessageHint(kidId, { consume = true } = {}) {
@@ -1200,6 +1274,33 @@ function shouldShowParentMessageHint(kidId, { consume = true } = {}) {
     parentMessageQueue.delete(kidId);
   }
   return hasHint;
+}
+
+function getKidUnreadCount(kidId) {
+  return kidUnreadCounts.get(kidId) || 0;
+}
+
+function updateKidMessagesFabState(kidId) {
+  if (!kidId) return;
+  if (!kidMessagesFab || !kidMessagesBadge) return;
+  if (kidId !== currentKidId) {
+    return;
+  }
+  const unread = getKidUnreadCount(kidId);
+  kidMessagesBadge.textContent = unread > 0 ? String(unread) : "";
+  kidMessagesFab.classList.toggle("has-unread", unread > 0);
+  const label = unread > 0 ? `הודעות (עוד ${unread} חדשות)` : "הודעות";
+  kidMessagesFab.setAttribute("aria-label", label);
+  kidMessagesFab.setAttribute("title", label);
+}
+
+function markKidMessagesRead(kidId, { flushQueue = false } = {}) {
+  if (!kidId) return;
+  kidUnreadCounts.delete(kidId);
+  if (flushQueue) {
+    kidMessageQueue.delete(kidId);
+  }
+  updateKidMessagesFabState(kidId);
 }
 
 // --------------------------------------------------
@@ -1431,7 +1532,7 @@ async function renderParentView({ useCacheOnly = false } = {}) {
 
     const kidAvatarSrc = AVATAR_SRC(kid.avatarId || 1);
     const kidStars = typeof kid.stars === "number" ? kid.stars : 0;
-    const kidLevel = typeof kid.level === "number" ? kid.level : 1;
+    const kidLevel = Math.max(typeof kid.level === "number" ? kid.level : 1, computeLevel(kidStars));
 
     const header = document.createElement("div");
     header.className = "kid-header";
@@ -1780,18 +1881,62 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
   }
 
   if (kidHeaderName) {
-    const displayName = kid.name ? kid.name : "🧒";
-    kidHeaderName.textContent = `היי ${displayName}`.trim();
+    const displayName = kid.name ? kid.name : "חבר/ה קסום/ה";
+    kidHeaderName.textContent = displayName;
   }
   if (kidAvatarImg) {
     kidAvatarImg.src = AVATAR_SRC(kid.avatarId || 1);
-    kidAvatarImg.alt = "Avatar";
+    kidAvatarImg.alt = kid.name ? `אווטאר של ${kid.name}` : "Avatar";
   }
-  if (kidStatsLine) {
-    const stars = typeof kid.stars === "number" ? kid.stars : 0;
-    const level = typeof kid.level === "number" ? kid.level : 1;
-    const levelTitle = getLevelTitle(level);
-    kidStatsLine.innerHTML = `<span class="level-chip">${escapeHtml(levelTitle)} — ⭐ ${stars}</span>`;
+  const totalStars = typeof kid.stars === "number" ? kid.stars : 0;
+  const storedLevel = typeof kid.level === "number" ? kid.level : 1;
+  const derivedLevel = computeLevel(totalStars);
+  const level = Math.max(storedLevel, derivedLevel);
+  const levelTitle = getLevelTitle(level);
+  const starsInLevel = starsIntoLevel(totalStars);
+  const starsNeededRaw = starsToNextLevel(totalStars);
+  const starsNeeded = starsNeededRaw === 0 ? STARS_PER_LEVEL : starsNeededRaw;
+  const nextLevelNumber = level + 1;
+  const next2LevelNumber = level + 2;
+  const nextLevelTitle = getLevelTitle(nextLevelNumber);
+  const next2LevelTitle = getLevelTitle(next2LevelNumber);
+  const progressPercent = Math.round((starsInLevel / STARS_PER_LEVEL) * 100);
+
+  if (kidLevelTitleEl) {
+    kidLevelTitleEl.textContent = levelTitle;
+  }
+  if (kidStarsSummaryEl) {
+    kidStarsSummaryEl.textContent = `⭐ ${totalStars} כוכבים`;
+  }
+  if (kidLevelProgressFill) {
+    kidLevelProgressFill.style.width = `${Math.min(100, Math.max(0, progressPercent))}%`;
+  }
+  if (kidLevelProgressText) {
+    kidLevelProgressText.textContent = `${starsInLevel} מתוך ${STARS_PER_LEVEL} ⭐ בדרגה ${levelTitle}`;
+  }
+  if (kidLevelProgressBar) {
+    kidLevelProgressBar.setAttribute("aria-valuenow", String(starsInLevel));
+    kidLevelProgressBar.setAttribute("aria-valuemax", String(STARS_PER_LEVEL));
+    kidLevelProgressBar.setAttribute("aria-valuetext", `${starsInLevel} מתוך ${STARS_PER_LEVEL} כוכבים`);
+  }
+  if (kidRankLine) {
+    const nextHint = starsNeededRaw === 0
+      ? "חגיגת שלב! ✨"
+      : `עוד ${starsNeeded} ⭐`;
+    kidRankLine.innerHTML = `
+      <div class="rank-pill current">
+        <strong>${escapeHtml(levelTitle)}</strong>
+        <span class="next-hint">שלב ${level}</span>
+      </div>
+      <div class="rank-pill next">
+        <strong>${escapeHtml(nextLevelTitle)}</strong>
+        <span class="next-hint">${escapeHtml(nextHint)}</span>
+      </div>
+      <div class="rank-pill">
+        <strong>${escapeHtml(next2LevelTitle)}</strong>
+        <span class="next-hint">שלב ${next2LevelNumber}</span>
+      </div>
+    `;
   }
   if (kidHeadlineEl) kidHeadlineEl.textContent = kid.childHeadline || "";
   if (kidSublineEl) kidSublineEl.textContent  = kid.childSubline || "";
@@ -1879,16 +2024,24 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
   });
 
   if (kidMessagesArea) {
+    const previewMessages = msgs.slice(0, 6);
     kidMessagesArea.innerHTML = `
       <div class="kid-messages-block">
         <div class="kid-messages-title">שיחות עם ההורה 💬</div>
         <div class="kid-messages-list chat-thread">
-          ${buildChatHtml(msgs, { emptyText: "עוד אין הודעות משותפות" })}
+          ${buildChatHtml(previewMessages, { emptyText: "עוד אין הודעות משותפות" })}
         </div>
+        <button type="button" class="kid-messages-open">פתח הודעות</button>
       </div>
     `;
+    const openBtn = kidMessagesArea.querySelector(".kid-messages-open");
+    if (openBtn) {
+      openBtn.addEventListener("click", () => openMessagesModal(kidId));
+    }
     maybeShowKidMessageBubble(kidId);
   }
+
+  updateKidMessagesFabState(kidId);
 
   if (!kidTasksArea) return;
 
@@ -1974,6 +2127,174 @@ window.sendKidMessage = async function sendKidMessage() {
     if (sendBtn) sendBtn.disabled = false;
   }
 };
+
+function refreshActiveMessagesModal() {
+  if (!activeMessagesModal) return;
+  const { kidId, thread } = activeMessagesModal;
+  if (!kidId || !thread) return;
+  const messages = messagesCache[kidId] || [];
+  thread.innerHTML = buildChatHtml(messages, { emptyText: "עוד אין הודעות משותפות" });
+  requestAnimationFrame(() => {
+    thread.scrollTop = thread.scrollHeight;
+  });
+}
+
+function openMessagesModal(kidId) {
+  if (!kidId) return;
+  const tpl = document.getElementById("messagesModalTemplate");
+  if (!tpl) return;
+
+  closeMessagesModal();
+
+  const fragment = tpl.content.cloneNode(true);
+  const bg = fragment.querySelector("#messagesModalBg");
+  const card = fragment.querySelector(".messages-modal");
+  const thread = fragment.querySelector("#messagesModalThread");
+  const textarea = fragment.querySelector("#messagesComposeText");
+  const sendBtn = fragment.querySelector("#messagesComposeSend");
+  const closeBtn = fragment.querySelector("#messagesModalClose");
+
+  if (!bg || !card || !thread || !textarea || !sendBtn || !closeBtn) {
+    return;
+  }
+
+  const outsideHandler = event => {
+    if (event.target === bg) {
+      closeMessagesModal();
+    }
+  };
+
+  const sendHandler = async () => {
+    const text = textarea.value.trim();
+    if (!text) {
+      textarea.focus();
+      return;
+    }
+    sendBtn.disabled = true;
+    try {
+      await addMessage(kidId, text, "child");
+      textarea.value = "";
+      await ensureMessagesLoaded(kidId, { force: true });
+      refreshActiveMessagesModal();
+      if (kidId === currentKidId) {
+        await renderKidView(kidId);
+      }
+      if (unlockedParent) {
+        await renderParentView({ useCacheOnly: true });
+      }
+      markKidMessagesRead(kidId);
+    } catch (err) {
+      console.error("messages modal send error", err);
+      alert("אירעה שגיאה בשליחת ההודעה 😔");
+    } finally {
+      sendBtn.disabled = false;
+      textarea.focus();
+    }
+  };
+
+  const inputKeyHandler = event => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      sendHandler();
+    }
+  };
+
+  const closeHandler = () => closeMessagesModal();
+
+  const focusableSelectors = "button, [href], input, textarea, select, [tabindex]:not([tabindex='-1'])";
+
+  const keyHandler = event => {
+    if (!activeMessagesModal || activeMessagesModal.kidId !== kidId) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeMessagesModal();
+      return;
+    }
+    if (event.key === "Tab") {
+      const focusables = activeMessagesModal.focusables || [];
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey) {
+        if (active === first || !card.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  };
+
+  sendBtn.addEventListener("click", sendHandler);
+  textarea.addEventListener("keydown", inputKeyHandler);
+  closeBtn.addEventListener("click", closeHandler);
+  bg.addEventListener("click", outsideHandler);
+
+  document.body.appendChild(bg);
+  requestAnimationFrame(() => bg.classList.add("active"));
+
+  const focusables = Array.from(card.querySelectorAll(focusableSelectors))
+    .filter(el => !el.disabled && el.tabIndex !== -1);
+
+  activeMessagesModal = {
+    kidId,
+    bg,
+    card,
+    thread,
+    textarea,
+    sendBtn,
+    closeBtn,
+    focusables,
+    handlers: { sendHandler, inputKeyHandler, closeHandler, outsideHandler, keyHandler }
+  };
+
+  messagesModalFocusReturn = document.activeElement || kidMessagesFab || null;
+
+  document.addEventListener("keydown", keyHandler);
+
+  refreshActiveMessagesModal();
+  markKidMessagesRead(kidId, { flushQueue: true });
+
+  setTimeout(() => {
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+  }, 0);
+}
+
+function closeMessagesModal() {
+  if (!activeMessagesModal) return;
+  const { bg, textarea, sendBtn, closeBtn, handlers, kidId } = activeMessagesModal;
+  if (handlers) {
+    if (sendBtn) sendBtn.removeEventListener("click", handlers.sendHandler);
+    if (textarea) textarea.removeEventListener("keydown", handlers.inputKeyHandler);
+    if (closeBtn) closeBtn.removeEventListener("click", handlers.closeHandler);
+    if (bg) bg.removeEventListener("click", handlers.outsideHandler);
+    document.removeEventListener("keydown", handlers.keyHandler);
+  }
+  if (bg) {
+    bg.classList.remove("active");
+    setTimeout(() => {
+      if (bg.parentNode) {
+        bg.parentNode.removeChild(bg);
+      }
+    }, 180);
+  }
+
+  activeMessagesModal = null;
+
+  if (kidId) {
+    updateKidMessagesFabState(kidId);
+  }
+
+  const focusTarget = messagesModalFocusReturn || kidMessagesFab;
+  messagesModalFocusReturn = null;
+  if (focusTarget && typeof focusTarget.focus === "function") {
+    focusTarget.focus();
+  }
+}
 
 // --------------------------------------------------
 // מודאל משימה חדשה

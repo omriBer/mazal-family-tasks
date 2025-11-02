@@ -91,9 +91,9 @@
 
   <!-- תבנית כרטיס ילד -->
   <template id="kidViewTemplate">
-    <section class="card" id="kidCard" aria-labelledby="kidHeaderName">
-      <header class="brand-header kid-header">
-        <div class="kid-header-main">
+    <section class="card kid-card" id="kidCard" aria-labelledby="kidHeaderName">
+      <div class="kid-top-card" role="region" aria-live="polite">
+        <div class="kid-top-left">
           <img
             class="kid-avatar"
             id="kidAvatarImg"
@@ -103,12 +103,48 @@
             tabindex="0"
             aria-label="בחרו דמות"
           />
-          <div class="kid-header-text">
-            <div class="kid-header-name" id="kidHeaderName">היי 🧒</div>
-            <div class="kid-stats-line" id="kidStatsLine"></div>
-          </div>
         </div>
-      </header>
+        <div class="kid-top-center">
+          <div class="kid-name-row">
+            <h2 class="kid-header-name" id="kidHeaderName">היי 🧒</h2>
+            <button
+              class="kid-avatar-gallery-btn"
+              id="kidAvatarGalleryBtn"
+              type="button"
+              aria-label="בחירת אווטאר מהגלריה"
+              title="גלריית אווטאר"
+            >🖼️</button>
+          </div>
+          <div class="kid-level-title" id="kidLevelTitle">תואר דרגה</div>
+          <div class="kid-stars-summary" id="kidStarsSummary">⭐ 0 כוכבים</div>
+          <div class="level-progress">
+            <div
+              class="level-progress-bar"
+              role="progressbar"
+              aria-valuemin="0"
+              aria-valuemax="5"
+              aria-valuenow="0"
+              aria-label="התקדמות כוכבים בשלב"
+            >
+              <div class="level-progress-fill" id="kidLevelProgressFill" style="width:0%;"></div>
+            </div>
+            <div class="level-progress-text" id="kidLevelProgressText">0 מתוך 5 ⭐ בדרגה</div>
+          </div>
+          <div class="rank-line" id="kidRankLine" aria-label="תחנות דרגה"></div>
+        </div>
+        <div class="kid-top-right">
+          <button
+            class="fab-messages"
+            id="kidMessagesFab"
+            type="button"
+            aria-label="הודעות"
+            title="הודעות"
+          >
+            <span class="fab-icon">💬</span>
+            <span class="fab-badge" id="kidMessagesBadge"></span>
+          </button>
+        </div>
+      </div>
 
       <div class="kid-tabs" id="kidTabsArea"></div>
 
@@ -128,6 +164,22 @@
         <button class="send-btn" onclick="sendKidMessage()">שליחה להורה ➜</button>
       </div>
     </section>
+  </template>
+
+  <template id="messagesModalTemplate">
+    <div class="modal-bg" id="messagesModalBg" role="dialog" aria-modal="true" aria-labelledby="messagesModalTitle">
+      <div class="modal-card messages-modal">
+        <header class="modal-header">
+          <h2 id="messagesModalTitle">הודעות 💬</h2>
+          <button class="modal-close" id="messagesModalClose" aria-label="סגור">✕</button>
+        </header>
+        <div class="messages-thread" id="messagesModalThread"></div>
+        <div class="messages-compose">
+          <textarea id="messagesComposeText" placeholder="כתוב/כתבי הודעה..."></textarea>
+          <button id="messagesComposeSend">שליחה ➤</button>
+        </div>
+      </div>
+    </div>
   </template>
 
   <!-- תבנית מסך ילד לא נמצא -->
