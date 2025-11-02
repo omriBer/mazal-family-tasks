@@ -1716,3 +1716,15 @@ button {
   margin-bottom: 14px;
   display: block;
 }
+
+
+/* --- Hotfix: הסתרת תצוגת שיחות תחתונה ושליחת הודעה --- */
+.kid-messages-wrapper,
+.send-feedback-area {
+  display: none !important;
+}
+
+/* --- Hotfix: ביטול כפתור גלריית אווטאר נפרד (נשארת לחיצה על האווטאר עצמו) --- */
+.kid-avatar-gallery-btn {
+  display: none !important;
+}
