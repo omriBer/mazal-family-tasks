@@ -91,82 +91,80 @@
 
   <!-- תבנית כרטיס ילד -->
   <template id="kidViewTemplate">
-  <!-- Watermark קסום -->
-  <div class="watermark" aria-hidden="true"></div>
-
-  <section class="card kid-card" id="kidCard" aria-labelledby="kidHeaderName">
-    <!-- כרטיס עליון בסגנון Wireframe v3 -->
-    <section class="top-card" aria-label="ראש הדף – שם, דרגה, כוכבים והתקדמות">
-      <div class="top-left">
-        <div class="kid-avatar-wrap">
+    <section class="card kid-card" id="kidCard" aria-labelledby="kidHeaderName">
+      <div class="kid-top-card" role="region" aria-live="polite">
+        <div class="kid-top-left">
           <img
             class="kid-avatar"
             id="kidAvatarImg"
             src="avatars/avatar-01.png"
-            alt="אווטאר"
+            alt="Avatar"
             role="button"
             tabindex="0"
             aria-label="בחרו דמות"
           />
-          <!-- כפתור גלריית אווטארים -->
-          <button class="avatar-badge" id="kidAvatarGalleryBtn" title="גלריית אווטארים" type="button">🖼️</button>
         </div>
-      </div>
-
-      <div class="top-center">
-        <div class="kid-line">
-          <h2 class="kid-name" id="kidHeaderName">היי 🧒</h2>
-        </div>
-
-        <!-- שורת דרגה וכוכבים -->
-        <div class="rank-line" aria-label="תואר דרגה וכמות כוכבים">
-          <div class="rank-title" id="kidLevelTitle">תואר דרגה</div>
-          <div class="star-pill" id="kidStarsSummary">⭐ 0</div>
-        </div>
-
-        <!-- התקדמות לשלב הבא -->
-        <div class="progress-wrap" aria-label="התקדמות לשלב הבא">
-          <div class="progress-bar level-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" aria-label="התקדמות כוכבים בשלב">
-            <div class="progress-fill level-progress-fill" id="kidLevelProgressFill" style="width:0%"></div>
+        <div class="kid-top-center">
+          <div class="kid-name-row">
+            <h2 class="kid-header-name" id="kidHeaderName">היי 🧒</h2>
+            <button
+              class="kid-avatar-gallery-btn"
+              id="kidAvatarGalleryBtn"
+              type="button"
+              aria-label="בחירת אווטאר מהגלריה"
+              title="גלריית אווטאר"
+            >🖼️</button>
           </div>
-          <div class="to-next" id="kidLevelProgressText">0 מתוך 5 ⭐ בדרגה</div>
+          <div class="kid-level-title" id="kidLevelTitle">תואר דרגה</div>
+          <div class="kid-stars-summary" id="kidStarsSummary">⭐ 0 כוכבים</div>
+          <div class="level-progress">
+            <div
+              class="level-progress-bar"
+              role="progressbar"
+              aria-valuemin="0"
+              aria-valuemax="5"
+              aria-valuenow="0"
+              aria-label="התקדמות כוכבים בשלב"
+            >
+              <div class="level-progress-fill" id="kidLevelProgressFill" style="width:0%;"></div>
+            </div>
+            <div class="level-progress-text" id="kidLevelProgressText">0 מתוך 5 ⭐ בדרגה</div>
+          </div>
+          <div class="rank-line" id="kidRankLine" aria-label="תחנות דרגה"></div>
         </div>
-
-        <!-- שלוש תחנות: נוכחית · הבאה · שאחריה -->
-        <div class="stations" id="kidRankLine" aria-label="תואר נוכחי ושני התארים הבאים">
-          <!-- מתמלא דינמית ב‑app.js -->
+        <div class="kid-top-right">
+          <button
+            class="fab-messages"
+            id="kidMessagesFab"
+            type="button"
+            aria-label="הודעות"
+            title="הודעות"
+          >
+            <span class="fab-icon">💬</span>
+            <span class="fab-badge" id="kidMessagesBadge"></span>
+          </button>
         </div>
       </div>
 
-      <div class="top-right">
-        <span class="top-tag">🎯 יום פעילות</span>
+      <div class="kid-tabs" id="kidTabsArea"></div>
+
+      <div class="kid-top-line" id="kidHeadline"></div>
+      <div class="kid-sub-line" id="kidSubline"></div>
+
+      <div id="kidTasksArea"></div>
+
+      <div id="kidMessagesArea" class="kid-messages-wrapper"></div>
+
+      <div class="send-feedback-area">
+        <label for="kidNote">רוצה לשלוח הודעה להורה?</label>
+        <textarea
+          id="kidNote"
+          placeholder="היה לי קשה עם הקיפול 👕"
+        ></textarea>
+        <button class="send-btn" onclick="sendKidMessage()">שליחה להורה ➜</button>
       </div>
     </section>
-
-    <!-- טקסטים קצרים (אם יש) -->
-    <div class="kid-top-line" id="kidHeadline"></div>
-    <div class="kid-sub-line" id="kidSubline"></div>
-
-    <!-- משימות היום -->
-    <div id="kidTasksArea"></div>
-
-    <!-- preview הודעות – נסתיר ב‑CSS -->
-    <div id="kidMessagesArea" class="kid-messages-wrapper"></div>
-
-    <!-- אזור שליחת הודעה קצר – נסתיר ב‑CSS -->
-    <div class="send-feedback-area">
-      <label for="kidNote">רוצה לשלוח הודעה להורה?</label>
-      <textarea id="kidNote" placeholder="היה לי קשה עם הקיפול 👕"></textarea>
-      <button class="send-btn" onclick="sendKidMessage()">שליחה להורה ➜</button>
-    </div>
-  </section>
-
-  <!-- FAB הודעות (פותח את המודאל הקיים) -->
-  <button class="fab" id="kidMessagesFab" type="button" aria-label="הודעות" title="הודעות">
-    💬 <span>הודעה להורה</span>
-    <span class="fab-badge" id="kidMessagesBadge"></span>
-  </button>
-</template>
+  </template>
 
   <template id="messagesModalTemplate">
     <div class="modal-bg" id="messagesModalBg" role="dialog" aria-modal="true" aria-labelledby="messagesModalTitle">

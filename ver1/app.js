@@ -1906,14 +1906,13 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
     kidLevelTitleEl.textContent = levelTitle;
   }
   if (kidStarsSummaryEl) {
-    kidStarsSummaryEl.textContent = `⭐ ${totalStars}`;
+    kidStarsSummaryEl.textContent = `⭐ ${totalStars} כוכבים`;
   }
   if (kidLevelProgressFill) {
     kidLevelProgressFill.style.width = `${Math.min(100, Math.max(0, progressPercent))}%`;
   }
   if (kidLevelProgressText) {
-    const hint = starsNeededRaw === 0 ? "חגיגת שלב! ✨" : `צריך עוד ${starsNeeded} כוכבים כדי לקפוץ שלב`;
-    kidLevelProgressText.textContent = hint;
+    kidLevelProgressText.textContent = `${starsInLevel} מתוך ${STARS_PER_LEVEL} ⭐ בדרגה ${levelTitle}`;
   }
   if (kidLevelProgressBar) {
     kidLevelProgressBar.setAttribute("aria-valuenow", String(starsInLevel));
@@ -1921,22 +1920,23 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
     kidLevelProgressBar.setAttribute("aria-valuetext", `${starsInLevel} מתוך ${STARS_PER_LEVEL} כוכבים`);
   }
   if (kidRankLine) {
-    const currentHtml = `
-      <div class="station current">
-        <div class="label">הדרגה הנוכחית</div>
-        <div class="value">${escapeHtml(levelTitle)}</div>
-      </div>`;
-    const nextHtml = `
-      <div class="station">
-        <div class="label">הדרגה הבאה</div>
-        <div class="value">${escapeHtml(nextLevelTitle)}</div>
-      </div>`;
-    const next2Html = `
-      <div class="station">
-        <div class="label">ואחריה</div>
-        <div class="value">${escapeHtml(next2LevelTitle)}</div>
-      </div>`;
-    kidRankLine.innerHTML = currentHtml + nextHtml + next2Html;
+    const nextHint = starsNeededRaw === 0
+      ? "חגיגת שלב! ✨"
+      : `עוד ${starsNeeded} ⭐`;
+    kidRankLine.innerHTML = `
+      <div class="rank-pill current">
+        <strong>${escapeHtml(levelTitle)}</strong>
+        <span class="next-hint">שלב ${level}</span>
+      </div>
+      <div class="rank-pill next">
+        <strong>${escapeHtml(nextLevelTitle)}</strong>
+        <span class="next-hint">${escapeHtml(nextHint)}</span>
+      </div>
+      <div class="rank-pill">
+        <strong>${escapeHtml(next2LevelTitle)}</strong>
+        <span class="next-hint">שלב ${next2LevelNumber}</span>
+      </div>
+    `;
   }
   if (kidHeadlineEl) kidHeadlineEl.textContent = kid.childHeadline || "";
   if (kidSublineEl) kidSublineEl.textContent  = kid.childSubline || "";
