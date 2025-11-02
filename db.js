@@ -16,6 +16,8 @@ import {
   onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
+export const STARS_PER_LEVEL = 5;
+
 // הקונפיג מהפרויקט שלך ב-Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyBfGOSPtF33dgN6bPhpgUrXT-eEyf6e8rI",
@@ -335,7 +337,7 @@ export async function incrementKidStars(kidId, delta) {
     lastStarTs: Date.now()
   };
 
-  const newLevel = Math.floor(Math.max(newStars, 0) / 5) + 1;
+  const newLevel = Math.floor(Math.max(newStars, 0) / STARS_PER_LEVEL) + 1;
   if (newLevel > currentLevel) {
     updates.level = newLevel;
     updates.lastLevelUpTs = Date.now();
