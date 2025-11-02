@@ -995,6 +995,22 @@ function buildChatHtml(messages = [], { allowDelete = false, kidId = "", emptyTe
   }).join("");
 }
 
+
+function scrollMessagesToBottom() {
+  const thread = document.getElementById("messagesModalThread");
+  if (!thread) return;
+  thread.scrollTop = thread.scrollHeight;
+}
+function isThreadNearBottom(threshold = 24) {
+  const thread = document.getElementById("messagesModalThread");
+  if (!thread) return true;
+  return (thread.scrollHeight - thread.scrollTop - thread.clientHeight) < threshold;
+}
+function showJumpToLatest(show = true) {
+  const btn = document.getElementById("messagesJumpLatest");
+  if (!btn) return;
+  btn.classList.toggle("is-visible", !!show);
+}
 function showSyncStatus(message = "") {
   if (!syncStatusContainer || !message) return;
 
@@ -1016,6 +1032,18 @@ function showSyncStatus(message = "") {
       }
     }, 400);
   }, 2800);
+}
+
+
+function buildModalMessagesHtml(messages = []) {
+  const items = Array.isArray(messages) ? messages : [];
+  // assume ASC order (oldest->newest)
+  return items.map(m => {
+    const from = m.from === "parent" ? "parent" : "child";
+    const time = new Date(m.ts || Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const text = formatMessageText(m.text || "");
+    return `<div class="msg ${from}"><div class="txt">${text}</div><span class="meta">${time}</span></div>`;
+  }).join("") || `<div class="msg-empty">${escapeHtml("אין הודעות")}</div>`;
 }
 
 function addIdsToPulseMap(map, kidId, ids = []) {
@@ -2133,6 +2161,17 @@ function refreshActiveMessagesModal() {
   const { kidId, thread } = activeMessagesModal;
   if (!kidId || !thread) return;
   const messages = messagesCache[kidId] || [];
+  const wasNearBottom = isThreadNearBottom(24);
+  thread.innerHTML = buildModalMessagesHtml(messages);
+  if (wasNearBottom) {
+    scrollMessagesToBottom();
+    showJumpToLatest(false);
+  } else {
+    showJumpToLatest(true);
+  }
+} = activeMessagesModal;
+  if (!kidId || !thread) return;
+  const messages = messagesCache[kidId] || [];
   thread.innerHTML = buildChatHtml(messages, { emptyText: "עוד אין הודעות משותפות" });
   requestAnimationFrame(() => {
     thread.scrollTop = thread.scrollHeight;
@@ -2153,6 +2192,7 @@ function openMessagesModal(kidId) {
   const textarea = fragment.querySelector("#messagesComposeText");
   const sendBtn = fragment.querySelector("#messagesComposeSend");
   const closeBtn = fragment.querySelector("#messagesModalClose");
+  const jumpBtn = fragment.querySelector("#messagesJumpLatest");
 
   if (!bg || !card || !thread || !textarea || !sendBtn || !closeBtn) {
     return;
@@ -2233,22 +2273,24 @@ function openMessagesModal(kidId) {
   closeBtn.addEventListener("click", closeHandler);
   bg.addEventListener("click", outsideHandler);
 
+  const threadScrollHandler = () => {
+    const nearBottom = isThreadNearBottom(24);
+    showJumpToLatest(!nearBottom);
+  };
+  if (thread) {
+    thread.addEventListener("scroll", threadScrollHandler);
+  }
+  if (jumpBtn) {
+    jumpBtn.addEventListener("click", scrollMessagesToBottom);
+  }
+
   document.body.appendChild(bg);
   requestAnimationFrame(() => bg.classList.add("active"));
 
   const focusables = Array.from(card.querySelectorAll(focusableSelectors))
     .filter(el => !el.disabled && el.tabIndex !== -1);
 
-  activeMessagesModal = {
-    kidId,
-    bg,
-    card,
-    thread,
-    textarea,
-    sendBtn,
-    closeBtn,
-    focusables,
-    handlers: { sendHandler, inputKeyHandler, closeHandler, outsideHandler, keyHandler }
+  activeMessagesModal = { kidId, bg, card, thread, textarea, sendBtn, closeBtn, jumpBtn, handlers: { sendHandler, inputKeyHandler, closeHandler, outsideHandler, keyHandler }
   };
 
   messagesModalFocusReturn = document.activeElement || kidMessagesFab || null;
@@ -2258,7 +2300,11 @@ function openMessagesModal(kidId) {
   refreshActiveMessagesModal();
   markKidMessagesRead(kidId, { flushQueue: true });
 
-  setTimeout(() => {
+  
+  // initial scroll to bottom on open
+  scrollMessagesToBottom();
+  showJumpToLatest(false);
+setTimeout(() => {
     textarea.focus();
     textarea.setSelectionRange(textarea.value.length, textarea.value.length);
   }, 0);
@@ -2274,6 +2320,18 @@ function closeMessagesModal() {
     if (bg) bg.removeEventListener("click", handlers.outsideHandler);
     document.removeEventListener("keydown", handlers.keyHandler);
   }
+  
+  // remove modal-specific scroll/jump handlers if exist
+  try {
+    const th = window.__messagesThreadScrollHandler;
+    const jh = window.__messagesJumpClickHandler;
+    const threadEl = document.getElementById("messagesModalThread");
+    const jumpBtnEl = document.getElementById("messagesJumpLatest");
+    if (threadEl && th) threadEl.removeEventListener("scroll", th);
+    if (jumpBtnEl && jh) jumpBtnEl.removeEventListener("click", jh);
+    window.__messagesThreadScrollHandler = null;
+    window.__messagesJumpClickHandler = null;
+  } catch (e) {}
   if (bg) {
     bg.classList.remove("active");
     setTimeout(() => {
