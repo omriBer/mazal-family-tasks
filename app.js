@@ -2163,9 +2163,13 @@ function refreshActiveMessagesModal(){
   const messages = messagesCache[kidId] || [];
   const wasNearBottom = isThreadNearBottom(24);
   thread.innerHTML = buildModalMessagesHtml(messages);
-  if(wasNearBottom){ requestAnimationFrame(()=> thread.scrollTop = thread.scrollHeight); }
-}
- = activeMessagesModal;
+  if (wasNearBottom) {
+    requestAnimationFrame(() => scrollMessagesToBottom());
+    showJumpToLatest(false);
+  } else {
+    showJumpToLatest(true);
+  }
+} = activeMessagesModal;
   if (!kidId || !thread) return;
   const messages = messagesCache[kidId] || [];
   const wasNearBottom = isThreadNearBottom(24);
@@ -2677,12 +2681,3 @@ window.addKid = async function addKidHandler(){
     if (kidMessagesArea) kidMessagesArea.innerHTML = "";
   }
 })();
-
-window.messagesThreadScrollHandler = function(){
-  const nearBottom = isThreadNearBottom(24);
-  showJumpToLatest(!nearBottom);
-};
-window.messagesJumpClickHandler = function(){
-  scrollMessagesToBottom();
-  showJumpToLatest(false);
-};
