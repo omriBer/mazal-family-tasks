@@ -966,18 +966,20 @@ function updateTaskScopeSingleLabel() {
 }
 
 function buildChatHtml(messages = [], { allowDelete = false, kidId = "", emptyText = "" } = {}) {
-  if (!messages || messages.length === 0) {
+  const messageList = Array.isArray(messages) ? messages : [];
+
+  if (messageList.length === 0) {
     const text = emptyText || "אין הודעות";
     return `<div class="msg-empty">${escapeHtml(text)}</div>`;
   }
 
-  const sortedMessages = [...messages].sort((a, b) => {
+  const orderedMessages = [...messageList].sort((a, b) => {
     const ats = typeof a.ts === "number" ? a.ts : 0;
     const bts = typeof b.ts === "number" ? b.ts : 0;
-    return bts - ats;
+    return ats - bts;
   });
 
-  return sortedMessages.map(m => {
+  return orderedMessages.map(m => {
     const directionClass = m.from === "parent" ? "parent" : "child";
     const textHtml       = formatMessageText(m.text || "");
     const deleteHtml = allowDelete && m.from === "parent"
@@ -2024,7 +2026,7 @@ async function renderKidView(kidId, { useCacheOnly = false } = {}) {
   });
 
   if (kidMessagesArea) {
-    const previewMessages = msgs.slice(0, 6);
+    const previewMessages = msgs.slice(-6);
     kidMessagesArea.innerHTML = `
       <div class="kid-messages-block">
         <div class="kid-messages-title">שיחות עם ההורה 💬</div>
