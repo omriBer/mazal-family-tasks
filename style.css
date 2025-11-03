@@ -889,6 +889,22 @@ button {
   margin-bottom: 12px;
 }
 
+.kid-install-actions {
+  display: none;
+  margin: 12px 0 20px;
+  text-align: center;
+}
+
+.kid-install-actions .sub-btn {
+  width: 100%;
+}
+
+.install-hint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-mid);
+}
+
 /* משימות במסך ילד */
 .child-task-row {
   background: rgba(255, 255, 255, 0.78);

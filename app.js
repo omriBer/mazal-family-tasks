@@ -26,6 +26,16 @@ const AVATAR_IDS = Array.from({ length: AVATAR_COUNT }, (_, i) => i + 1);
 const BASE = window.location.pathname.replace(/\/index\.html?$/, "");
 const AVATAR_SRC = id => `${BASE}/avatars/avatar-${String(id).padStart(2, "0")}.png`;
 
+const DEFAULT_APP_NAME = "מז״ל – משימות, זמן ולב";
+const DEFAULT_APP_SHORT_NAME = "מז״ל";
+const DEFAULT_THEME_COLOR = "#7b5cff";
+const DEFAULT_BACKGROUND_COLOR = "#7b5cff";
+const MANIFEST_ICON_DEFS = [
+  { src: "icon-180.png", sizes: "180x180", type: "image/png", purpose: "any maskable" },
+  { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+  { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }
+];
+
 const LEVEL_TITLES = [
   // רמות 1–10: מתחילים ועולים
   "מתחיל/ה רשמי/ת",
@@ -142,6 +152,9 @@ let kidHeadlineEl        = null;
 let kidSublineEl         = null;
 let kidTasksArea         = null;
 let kidMessagesArea      = null;
+let kidInstallContainer  = null;
+let kidInstallButton     = null;
+let kidInstallHint       = null;
 
 let taskModalBg     = null;
 let taskChildSel    = null;
@@ -285,6 +298,9 @@ function mountKidUi() {
   kidSublineEl    = document.getElementById("kidSubline");
   kidTasksArea    = document.getElementById("kidTasksArea");
   kidMessagesArea = document.getElementById("kidMessagesArea");
+  kidInstallContainer = document.getElementById("kidInstallContainer");
+  kidInstallButton    = document.getElementById("kidInstallButton");
+  kidInstallHint      = document.getElementById("kidInstallHint");
   kidLevelProgressBar  = kidCard ? kidCard.querySelector(".level-progress-bar") : null;
 
   if (kidMessagesBadge) {
@@ -307,6 +323,14 @@ function mountKidUi() {
         openMessagesModal(currentKidId);
       }
     });
+  }
+  if (kidInstallButton) {
+    kidInstallButton.addEventListener("click", onKidInstallButtonClick);
+  }
+
+  updateKidInstallUiVisibility();
+  if (kidPrivateMode) {
+    scheduleInstallFallbackHint();
   }
   ensureAvatarPickerElements();
 
@@ -348,6 +372,12 @@ function mountKidMissingCard() {
   kidSublineEl    = null;
   kidTasksArea    = null;
   kidMessagesArea = null;
+  kidInstallContainer = null;
+  kidInstallButton = null;
+  kidInstallHint = null;
+
+  clearInstallHintTimer();
+  installHintActive = false;
 }
 
 // סטייט בריצה
@@ -376,6 +406,12 @@ const pendingCelebrations        = new Map(); // kidId -> [{type,...}]
 const kidUnreadCounts            = new Map(); // kidId -> number of unread parent messages
 
 let manageSelectedKidId = null;
+
+let deferredInstallPrompt = null;
+let installHintTimeout = null;
+let installHintActive = false;
+let appWasInstalled = false;
+let appliedManifestSignature = "";
 
 let syncStatusTimeout = null;
 let realtimeFailed    = false;
@@ -418,6 +454,165 @@ function escapeHtml(str = "") {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
+// --------------------------------------------------
+// PWA Manifest + התקנה
+// --------------------------------------------------
+function ensureManifestLink() {
+  let link = document.querySelector('link[rel="manifest"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.setAttribute("rel", "manifest");
+    document.head.appendChild(link);
+  }
+  return link;
+}
+
+function applyDynamicManifestForKid(slug = "", displayName = "") {
+  if (!slug) return;
+
+  const cleanName = displayName ? displayName.trim() : "";
+  const signature = `${slug}|${cleanName}`;
+  if (appliedManifestSignature === signature) {
+    return;
+  }
+
+  const manifestName = cleanName ? `מז״ל – ${cleanName}` : DEFAULT_APP_NAME;
+  const manifestShort = cleanName || DEFAULT_APP_SHORT_NAME;
+  const startUrl = `./index.html?kid=${encodeURIComponent(slug)}`;
+
+  const manifest = {
+    name: manifestName,
+    short_name: manifestShort,
+    start_url: startUrl,
+    scope: "./",
+    display: "standalone",
+    theme_color: DEFAULT_THEME_COLOR,
+    background_color: DEFAULT_BACKGROUND_COLOR,
+    icons: MANIFEST_ICON_DEFS
+  };
+
+  const manifestJson = JSON.stringify(manifest);
+  const encoded = encodeURIComponent(manifestJson);
+  const link = ensureManifestLink();
+  link.setAttribute("href", `data:application/json,${encoded}`);
+  appliedManifestSignature = signature;
+}
+
+function getKidDisplayNameForSlug(slug = "") {
+  if (!slug) return "";
+  const targetSlug = slug.toLowerCase();
+  const kid = kidsCache.find(k => {
+    const kidSlug = (k.slug || "").toLowerCase();
+    return kidSlug === targetSlug || k.id === slug;
+  });
+  return kid ? (kid.name || kid.displayName || "") : "";
+}
+
+function ensureDynamicManifestForCurrentKid() {
+  if (!kidPrivateMode || !requestedKidSlug) return;
+  const displayName = getKidDisplayNameForSlug(requestedKidSlug);
+  applyDynamicManifestForKid(requestedKidSlug, displayName);
+}
+
+function clearInstallHintTimer() {
+  if (installHintTimeout) {
+    clearTimeout(installHintTimeout);
+    installHintTimeout = null;
+  }
+}
+
+function scheduleInstallFallbackHint() {
+  if (!kidPrivateMode || appWasInstalled) return;
+  clearInstallHintTimer();
+  installHintActive = false;
+  if (kidInstallHint) {
+    kidInstallHint.style.display = "none";
+  }
+
+  installHintTimeout = setTimeout(() => {
+    installHintTimeout = null;
+    if (!kidPrivateMode || deferredInstallPrompt || appWasInstalled) {
+      return;
+    }
+    installHintActive = true;
+    updateKidInstallUiVisibility();
+  }, 1600);
+}
+
+function updateKidInstallUiVisibility() {
+  if (!kidInstallContainer) return;
+
+  const showButton = kidPrivateMode && !appWasInstalled && Boolean(deferredInstallPrompt);
+  const showHint = kidPrivateMode && !appWasInstalled && installHintActive && !deferredInstallPrompt;
+  const shouldShowContainer = showButton || showHint;
+
+  if (!kidPrivateMode || appWasInstalled || !shouldShowContainer) {
+    kidInstallContainer.style.display = "none";
+  } else {
+    kidInstallContainer.style.display = "block";
+  }
+
+  if (kidInstallButton) {
+    kidInstallButton.style.display = showButton ? "block" : "none";
+    kidInstallButton.disabled = !showButton;
+  }
+
+  if (kidInstallHint) {
+    kidInstallHint.style.display = showHint ? "block" : "none";
+  }
+}
+
+async function onKidInstallButtonClick() {
+  if (!deferredInstallPrompt) {
+    return;
+  }
+
+  try {
+    ensureDynamicManifestForCurrentKid();
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+    if (choice && choice.outcome === "accepted") {
+      appWasInstalled = true;
+    }
+  } catch (err) {
+    console.warn("Install prompt failed", err);
+  }
+
+  deferredInstallPrompt = null;
+
+  if (appWasInstalled) {
+    clearInstallHintTimer();
+    installHintActive = false;
+  } else {
+    scheduleInstallFallbackHint();
+  }
+
+  updateKidInstallUiVisibility();
+}
+
+window.addEventListener("beforeinstallprompt", event => {
+  if (!kidPrivateMode) {
+    return;
+  }
+
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  clearInstallHintTimer();
+  installHintActive = false;
+  if (kidInstallHint) {
+    kidInstallHint.style.display = "none";
+  }
+  ensureDynamicManifestForCurrentKid();
+  updateKidInstallUiVisibility();
+});
+
+window.addEventListener("appinstalled", () => {
+  appWasInstalled = true;
+  clearInstallHintTimer();
+  installHintActive = false;
+  updateKidInstallUiVisibility();
+});
 
 function formatMessageText(str = "") {
   return escapeHtml(str).replace(/\n/g, "<br/>");
@@ -929,6 +1124,10 @@ function mergeKidRealtimeData(kidId, data = {}) {
   } else {
     kidsCache.push(normalized);
   }
+
+  if (kidPrivateMode) {
+    ensureDynamicManifestForCurrentKid();
+  }
 }
 
 function getSelectedScopeValue() {
@@ -1426,6 +1625,10 @@ async function ensureKidsLoaded({ force = false } = {}) {
   }
 
   kidsCache = kidsCache.map(normalizeKid);
+
+  if (kidPrivateMode) {
+    ensureDynamicManifestForCurrentKid();
+  }
 
   kidsCache.forEach(kid => {
     if (!prevStarsByKid.has(kid.id)) {
@@ -2579,12 +2782,20 @@ window.addKid = async function addKidHandler(){
   requestedKidSlug = (params.get("kid") || "").trim();
   kidPrivateMode = requestedKidSlug !== "";
 
+  if (kidPrivateMode) {
+    applyDynamicManifestForKid(requestedKidSlug);
+  }
+
   if (!kidPrivateMode) {
     mountViewToggle();
     mountParentUi();
   }
 
   await ensureKidsLoaded();
+
+  if (kidPrivateMode) {
+    ensureDynamicManifestForCurrentKid();
+  }
 
   if (kidPrivateMode) {
     if (kidsCache.length > 0) {
