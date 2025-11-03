@@ -1749,7 +1749,7 @@ body{
 .top-tag{background:#fff;padding:6px 10px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.06);font-weight:700}
 .kid-avatar-wrap{position:relative;width:68px;height:68px;border-radius:50%;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.18)}
 .kid-avatar-wrap img{width:100%;height:100%;object-fit:cover}
-
+.avatar-badge{position:absolute;bottom:-6px;left:-6px;background:#fff;border-radius:12px;border:2px solid rgba(0,0,0,.06);padding:4px 6px;box-shadow:0 3px 8px rgba(0,0,0,.12);font-size:12px;cursor:pointer}
 .rank-line{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px}
 .rank-title{font-size:20px;font-weight:800;color:var(--primary);background:linear-gradient(90deg, var(--primary), var(--pink));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 .star-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08);font-weight:700}
@@ -1778,35 +1778,4 @@ body{
   .progress-wrap{width:100%}
   .stations{grid-template-columns:1fr}
 }
-
-/* ===== WhatsApp-like messages modal (fix) ===== */
-.messages-modal { padding-bottom: 56px; position: relative; }
-.messages-modal .messages-thread{
-  display:flex; flex-direction:column; gap:8px;
-  max-height: 240px; /* ~4 בועות ממוצעות */
-  overflow-y:auto; padding: 8px 12px 4px;
-}
-.messages-modal .msg{ display:flex; width:100%; }
-.messages-modal .msg.child{ justify-content:flex-start; }
-.messages-modal .msg.parent{ justify-content:flex-end; }
-.messages-modal .msg .txt{
-  max-width:78%;
-  background:#fff;
-  border-radius:16px;
-  padding:8px 12px;
-  box-shadow:0 2px 6px rgba(31,14,66,0.16);
-  font-size:14px; line-height:1.35;
-}
-.messages-modal .msg.parent .txt{ background: #eaffd5; } /* בועה "שלי" */
-.messages-modal .msg.child .txt{ background: #ffffff; }
-.messages-modal .msg .meta{
-  font-size:11px; color:#6b6b6b; align-self:flex-end; margin:0 6px;
-}
-.messages-modal .jump-to-latest{
-  position:absolute; right:12px; bottom:8px;
-  border:none; border-radius:999px; padding:8px 10px;
-  background:#fff; box-shadow:0 4px 10px rgba(0,0,0,0.15);
-  cursor:pointer; display:none;
-}
-.messages-modal .jump-to-latest.is-visible{ display:inline-flex; }
 

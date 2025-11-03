@@ -423,34 +423,6 @@ function formatMessageText(str = "") {
   return escapeHtml(str).replace(/\n/g, "<br/>");
 }
 
-
-/* ---------- Messages modal helpers (jump-to-latest, smart scroll) ---------- */
-function scrollMessagesToBottom() {
-  const thread = document.getElementById("messagesModalThread");
-  if (!thread) return;
-  thread.scrollTop = thread.scrollHeight;
-}
-function isThreadNearBottom(threshold = 24) {
-  const thread = document.getElementById("messagesModalThread");
-  if (!thread) return true;
-  return (thread.scrollHeight - thread.scrollTop - thread.clientHeight) < threshold;
-}
-function showJumpToLatest(show = true) {
-  const btn = document.getElementById("messagesJumpLatest");
-  if (!btn) return;
-  btn.classList.toggle("is-visible", !!show);
-}
-
-/* Render messages for the modal in chronological order (oldest→newest) */
-function buildModalMessagesHtml(messages = []) {
-  const items = Array.isArray(messages) ? messages : [];
-  return items.map(m => {
-    const from = m.from === "parent" ? "parent" : "child";
-    const time = new Date(m.ts || Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    const text = formatMessageText(m.text || "");
-    return `<div class="msg ${from}"><div class="txt">${text}</div><span class="meta">${time}</span></div>`;
-  }).join("") || `<div class="msg-empty">${escapeHtml("אין הודעות")}</div>`;
-}
 function ensureFloatingNoticeElements() {
   if (!floatingNoticeWrapper) {
     floatingNoticeWrapper = document.getElementById("floatingNoticeRoot");
@@ -2156,30 +2128,15 @@ window.sendKidMessage = async function sendKidMessage() {
   }
 };
 
-function refreshActiveMessagesModal(){
-  if(!activeMessagesModal) return;
+function refreshActiveMessagesModal() {
+  if (!activeMessagesModal) return;
   const { kidId, thread } = activeMessagesModal;
-  if(!kidId || !thread) return;
-  const messages = messagesCache[kidId] || [];
-  const wasNearBottom = isThreadNearBottom(24);
-  thread.innerHTML = buildModalMessagesHtml(messages);
-  if (wasNearBottom) {
-    requestAnimationFrame(() => scrollMessagesToBottom());
-    showJumpToLatest(false);
-  } else {
-    showJumpToLatest(true);
-  }
-} = activeMessagesModal;
   if (!kidId || !thread) return;
   const messages = messagesCache[kidId] || [];
-  const wasNearBottom = isThreadNearBottom(24);
-  thread.innerHTML = buildModalMessagesHtml(messages);
-  if (wasNearBottom) {
-    requestAnimationFrame(() => scrollMessagesToBottom());
-    showJumpToLatest(false);
-  } else {
-    showJumpToLatest(true);
-  }
+  thread.innerHTML = buildChatHtml(messages, { emptyText: "עוד אין הודעות משותפות" });
+  requestAnimationFrame(() => {
+    thread.scrollTop = thread.scrollHeight;
+  });
 }
 
 function openMessagesModal(kidId) {
@@ -2196,7 +2153,6 @@ function openMessagesModal(kidId) {
   const textarea = fragment.querySelector("#messagesComposeText");
   const sendBtn = fragment.querySelector("#messagesComposeSend");
   const closeBtn = fragment.querySelector("#messagesModalClose");
-  const jumpBtn = fragment.querySelector("#messagesJumpLatest");
 
   if (!bg || !card || !thread || !textarea || !sendBtn || !closeBtn) {
     return;
@@ -2220,8 +2176,6 @@ function openMessagesModal(kidId) {
       textarea.value = "";
       await ensureMessagesLoaded(kidId, { force: true });
       refreshActiveMessagesModal();
-  scrollMessagesToBottom();
-  showJumpToLatest(false);
       if (kidId === currentKidId) {
         await renderKidView(kidId);
       }
@@ -2278,17 +2232,6 @@ function openMessagesModal(kidId) {
   textarea.addEventListener("keydown", inputKeyHandler);
   closeBtn.addEventListener("click", closeHandler);
   bg.addEventListener("click", outsideHandler);
-  // smart scroll + jump-to-latest
-  const scrollHandler = () => {
-    const nearBottom = isThreadNearBottom(24);
-    showJumpToLatest(!nearBottom);
-  };
-  if (thread) thread.addEventListener("scroll", scrollHandler);
-  if (jumpBtn) jumpBtn.addEventListener("click", () => {
-    scrollMessagesToBottom();
-    showJumpToLatest(false);
-  });
-
 
   document.body.appendChild(bg);
   requestAnimationFrame(() => bg.classList.add("active"));
@@ -2331,15 +2274,7 @@ function closeMessagesModal() {
     if (bg) bg.removeEventListener("click", handlers.outsideHandler);
     document.removeEventListener("keydown", handlers.keyHandler);
   }
-  
-  // remove modal-specific scroll/jump listeners if exist
-  try {
-    const threadEl = document.getElementById("messagesModalThread");
-    const jumpBtnEl = document.getElementById("messagesJumpLatest");
-    if (threadEl) threadEl.replaceWith(threadEl.cloneNode(true)); // quick remove listeners by cloning
-    if (jumpBtnEl) jumpBtnEl.replaceWith(jumpBtnEl.cloneNode(true));
-  } catch (e) {}
-if (bg) {
+  if (bg) {
     bg.classList.remove("active");
     setTimeout(() => {
       if (bg.parentNode) {

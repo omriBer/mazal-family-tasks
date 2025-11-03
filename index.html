@@ -7,15 +7,10 @@
 
   <!-- CSS ראשי -->
   <link rel="stylesheet" href="style.css" />
-  <meta name="theme-color" content="#7b5cff" />
 
   <!-- מאפשר להתקין כמו אפליקציה במסך הבית -->
-<!-- 🌟 אייקון למסך הבית / שולחן העבודה -->
-<link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon-192.png" type="image/png">
-<link rel="apple-touch-icon" href="icon-180.png">
-<link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
-<link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
+  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;מז״ל&quot;,&quot;short_name&quot;:&quot;מז״ל&quot;,&quot;display&quot;:&quot;standalone&quot;}" />
+  <meta name="theme-color" content="#ffe775" />
 </head>
 <body>
 
@@ -113,6 +108,8 @@
             tabindex="0"
             aria-label="בחרו דמות"
           />
+          <!-- כפתור גלריית אווטארים -->
+          <button class="avatar-badge" id="kidAvatarGalleryBtn" title="גלריית אווטארים" type="button">🖼️</button>
         </div>
       </div>
 
@@ -179,7 +176,6 @@
           <button class="modal-close" id="messagesModalClose" aria-label="סגור">✕</button>
         </header>
         <div class="messages-thread" id="messagesModalThread"></div>
-        <button class="jump-to-latest" id="messagesJumpLatest" type="button" aria-label="קפיצה להודעה האחרונה">⬇︎</button>
         <div class="messages-compose">
           <textarea id="messagesComposeText" placeholder="כתוב/כתבי הודעה..."></textarea>
           <button id="messagesComposeSend">שליחה ➤</button>
