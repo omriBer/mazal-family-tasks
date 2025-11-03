@@ -205,7 +205,7 @@ export async function listMessages(kidId) {
     return [];
   }
   const msgsCol = collection(db, "kids", kidId, "messages");
-  const q = query(msgsCol, orderBy("ts", "desc"));
+  const q = query(msgsCol, orderBy("ts", "asc"));
   const snap = await getDocs(q);
 
   const messages = [];
@@ -239,7 +239,7 @@ export function subscribeMessages(kidId, callback) {
   }
 
   const msgsCol = collection(db, "kids", kidId, "messages");
-  const q = query(msgsCol, orderBy("ts", "desc"));
+  const q = query(msgsCol, orderBy("ts", "asc"));
 
   const unsubscribe = onSnapshot(
     q,
